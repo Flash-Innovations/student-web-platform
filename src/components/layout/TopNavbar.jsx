@@ -7,13 +7,9 @@ import {
   CheckCheck,
   ChevronDown,
   User,
-  Shield,
-  GraduationCap,
-  Building2,
-  BarChart3,
-  LogOut,
-  Layers,
-  LayoutDashboard
+  Briefcase,
+  Code2,
+  LogOut
 } from "lucide-react";
 import Avatar from "../common/Avatar";
 import { useAuth } from "../../context/AuthContext";
@@ -21,7 +17,7 @@ import { useNotifications } from "../../context/NotificationContext";
 import { cn } from "../../utils/cn";
 
 export function TopNavbar({ onMenuClick }) {
-  const { user, role, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
 
@@ -60,19 +56,17 @@ export function TopNavbar({ onMenuClick }) {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search skills, companies, mock drills, students..."
+            placeholder="Search problems, practice tracks, placement drives..."
             className="w-full pl-9 pr-4 py-1.5 bg-slate-100/80 hover:bg-slate-100 text-xs sm:text-sm rounded-xl border border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-slate-400"
           />
         </div>
       </div>
 
-      {/* Right items: Role Switcher, Notifications, Profile */}
+      {/* Right items: College Badge (if affiliated), Notifications, Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Institutional Campus Badge */}
-        {role !== 'student' && (user?.institutionName || (user?.collegeName && user.collegeName !== 'College')) && (
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-xl text-xs font-semibold text-slate-700 border border-slate-200/60">
-            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-            <span className="truncate max-w-[160px]">{user.institutionName || user.collegeName}</span>
+        {user?.collegeName && (
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-indigo-50/70 rounded-xl text-xs font-semibold text-indigo-700 border border-indigo-100/80">
+            <span className="truncate max-w-[160px]">{user.collegeName}</span>
           </div>
         )}
 
@@ -162,9 +156,9 @@ export function TopNavbar({ onMenuClick }) {
             className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <Avatar
-              src={user?.profileImageUrl || user?.logoUrl || user?.avatar}
-              name={user?.name || (user?.role === "placement" ? user?.collegeName : "User")}
-              isCollege={user?.role === "placement" || user?.role === "admin"}
+              src={user?.profileImageUrl || user?.avatar}
+              name={user?.name || "Student"}
+              isCollege={false}
               size="sm"
               className="border border-slate-200 shrink-0"
             />
@@ -174,108 +168,44 @@ export function TopNavbar({ onMenuClick }) {
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
               <div className="px-4 py-2 border-b border-slate-100">
-                <p className="text-xs font-bold text-slate-900 truncate">{user?.name}</p>
-                <p className="text-[11px] text-slate-400 truncate">{user?.email}</p>
+                <p className="text-xs font-bold text-slate-900 truncate">{user?.name || "Student Candidate"}</p>
+                <p className="text-[11px] text-slate-400 truncate">{user?.email || user?.rollNo}</p>
                 <span className="mt-1 inline-block text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">
-                  {user?.role}
+                  Student
                 </span>
               </div>
 
               <div className="py-1">
-                {role === "university_admin" && (
-                  <>
-                    <button
-                      onClick={() => {
-                        navigate("/institution/dashboard");
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer font-semibold text-indigo-600"
-                    >
-                      <LayoutDashboard className="w-4 h-4 text-indigo-600" />
-                      Dashboard Overview
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigate("/institution/profile");
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer font-semibold text-slate-700"
-                    >
-                      <Building2 className="w-4 h-4 text-slate-500" />
-                      University Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigate("/institution/departments");
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer font-semibold text-slate-700"
-                    >
-                      <Layers className="w-4 h-4 text-slate-500" />
-                      Departments
-                    </button>
-                  </>
-                )}
-                {role === "student" && (
-                  <button
-                    onClick={() => {
-                      navigate("/student/profile");
-                      setProfileOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer"
-                  >
-                    <User className="w-4 h-4 text-slate-400" />
-                    My Profile
-                  </button>
-                )}
-                {role === "placement" && (
-                  <>
-                    <button
-                      onClick={() => {
-                        navigate("/placement/profile");
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer font-semibold text-indigo-600"
-                    >
-                      <Building2 className="w-4 h-4 text-indigo-600" />
-                      College Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigate("/placement/analytics");
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <BarChart3 className="w-4 h-4 text-slate-400" />
-                      Placement Analytics
-                    </button>
-                  </>
-                )}
-                {role === "admin" && (
-                  <>
-                    <button
-                      onClick={() => {
-                        navigate("/admin/profile");
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer font-semibold text-indigo-600"
-                    >
-                      <Building2 className="w-4 h-4 text-indigo-600" />
-                      College Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigate("/admin/settings");
-                        setProfileOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <Shield className="w-4 h-4 text-slate-400" />
-                      Platform Settings
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => {
+                    navigate("/student/profile");
+                    setProfileOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <User className="w-4 h-4 text-slate-400" />
+                  My Career Profile
+                </button>
+                <button
+                  onClick={() => {
+                    navigate("/student/practice");
+                    setProfileOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Code2 className="w-4 h-4 text-slate-400" />
+                  Practice Hub
+                </button>
+                <button
+                  onClick={() => {
+                    navigate("/student/jobs");
+                    setProfileOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Briefcase className="w-4 h-4 text-slate-400" />
+                  Job Opportunities
+                </button>
               </div>
 
               <div className="border-t border-slate-100 pt-1">

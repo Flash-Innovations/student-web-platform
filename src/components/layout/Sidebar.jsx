@@ -2,40 +2,31 @@ import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
-  FileText,
   Target,
   GraduationCap,
   Mic,
-  Award,
   CheckSquare,
-  Users,
-  Sparkles,
-  User,
-  Building2,
   Briefcase,
-  BarChart3,
-  FileSpreadsheet,
-  ShieldAlert,
-  Settings,
+  User,
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Zap,
   BookOpen,
   Code2,
-  Layers
+  Trophy
 } from "lucide-react";
 import Avatar from "../common/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import { cn } from "../../utils/cn";
 
 export function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen }) {
-  const { user, role, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const studentLinks = [
     { to: "/student/dashboard", label: "Overview", icon: LayoutDashboard },
-    { to: "/student/practice", label: "Practice", icon: Code2 },
+    { to: "/student/practice", label: "Practice Hub", icon: Code2 },
+    { to: "/student/contests", label: "Contests", icon: Trophy, badge: "Live" },
     { to: "/student/assessments", label: "Assessments", icon: BookOpen },
     { to: "/student/skills", label: "Skill Gap Analysis", icon: Target },
     { to: "/student/readiness", label: "Placement Readiness", icon: GraduationCap },
@@ -44,54 +35,6 @@ export function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen
     { to: "/student/jobs", label: "Job Opportunities", icon: Briefcase, badge: "Drives" },
     { to: "/student/profile", label: "My Profile", icon: User }
   ];
-
-  const placementLinks = [
-    { to: "/placement/dashboard", label: "Batch Overview", icon: LayoutDashboard },
-    { to: "/placement/assessments", label: "Assessments", icon: Layers },
-    { to: "/placement/questions", label: "Question Bank", icon: BookOpen },
-    { to: "/placement/students", label: "Student Directory", icon: Users },
-    { to: "/placement/jobs", label: "Job Descriptions", icon: Briefcase, badge: "Match" },
-    { to: "/placement/analytics", label: "Placement Analytics", icon: BarChart3 },
-    { to: "/placement/reports", label: "Institutional Reports", icon: FileSpreadsheet },
-    { to: "/placement/profile", label: "Department Profile", icon: Building2 }
-  ];
-
-  const adminLinks = [
-    { to: "/admin/dashboard", label: "System Overview", icon: LayoutDashboard },
-    { to: "/admin/assessments", label: "Assessments", icon: Layers },
-    { to: "/admin/questions", label: "Question Bank", icon: BookOpen },
-    { to: "/admin/users", label: "User Management", icon: Users },
-    { to: "/admin/students", label: "Student Records", icon: GraduationCap },
-    { to: "/admin/analytics", label: "Platform Analytics", icon: BarChart3 },
-    { to: "/admin/profile", label: "Department Profile", icon: Building2 },
-    { to: "/admin/settings", label: "System Settings", icon: Settings }
-  ];
-
-  const universityAdminLinks = [
-    { to: "/institution/dashboard", label: "Overview", icon: LayoutDashboard },
-    { to: "/institution/assessments", label: "Assessments", icon: Layers },
-    { to: "/institution/questions", label: "Question Bank", icon: BookOpen },
-    { to: "/institution/departments", label: "Departments", icon: Building2, badge: "Units" },
-    { to: "/institution/profile", label: "College Profile", icon: Building2 }
-  ];
-
-  const superAdminLinks = [
-    { to: "/super-admin/dashboard", label: "Overview", icon: LayoutDashboard },
-    { to: "/super-admin/approvals", label: "College Approvals", icon: Building2, badge: "Review" },
-    { to: "/super-admin/institutions", label: "Institutions Directory", icon: Users },
-    { to: "/super-admin/questions", label: "Global Question Bank", icon: BookOpen, badge: "Global" }
-  ];
-
-  const links =
-    role === "super_admin"
-      ? superAdminLinks
-      : role === "university_admin"
-      ? universityAdminLinks
-      : role === "placement"
-      ? placementLinks
-      : role === "admin"
-      ? adminLinks
-      : studentLinks;
 
   const handleLogout = () => {
     logout();
@@ -119,7 +62,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen
         {/* Brand Header */}
         <div className="h-16 flex items-center justify-between px-3.5 border-b border-slate-100">
           <div
-            onClick={() => navigate(`/${role}/dashboard`)}
+            onClick={() => navigate("/student/dashboard")}
             className="flex items-center gap-2.5 cursor-pointer overflow-hidden"
           >
             {isCollapsed ? (
@@ -155,17 +98,11 @@ export function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen
         <div className="flex-1 py-4 px-3 space-y-1 overflow-y-auto no-scrollbar">
           {!isCollapsed && (
             <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              {role === "university_admin"
-                ? "University Admin Portal"
-                : role === "placement"
-                ? "Placement Portal"
-                : role === "admin"
-                ? "System Portal"
-                : "Student Career Hub"}
+              Student Career Hub
             </div>
           )}
 
-          {links.map((link) => {
+          {studentLinks.map((link) => {
             const Icon = link.icon;
             return (
               <NavLink
@@ -218,7 +155,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen
           })}
         </div>
 
-        {/* User Footer */}
+        {/* Student User Footer */}
         <div className="p-3 border-t border-slate-100 bg-slate-50/50">
           <div
             className={cn(
@@ -227,25 +164,19 @@ export function Sidebar({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen
             )}
           >
             <Avatar
-              src={user?.profileImageUrl || user?.logoUrl || user?.avatar}
-              name={user?.name || (user?.role === "placement" ? user?.collegeName : user?.role === "university_admin" ? user?.institutionName : "Student")}
-              isCollege={user?.role === "placement" || user?.role === "admin" || user?.role === "university_admin"}
+              src={user?.profileImageUrl || user?.avatar}
+              name={user?.name || "Student"}
+              isCollege={false}
               size="sm"
               className="border border-slate-200 shrink-0"
             />
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-slate-900 truncate">
-                  {user?.name || (user?.role === "university_admin" ? user?.institutionName : "Student")}
+                  {user?.name || "Student Candidate"}
                 </p>
                 <p className="text-[11px] text-slate-400 capitalize truncate">
-                  {user?.role === "university_admin"
-                    ? "University Admin"
-                    : user?.role === "placement"
-                    ? "Placement Officer"
-                    : user?.role === "admin"
-                    ? "System Admin"
-                    : "Student"}
+                  {user?.rollNo ? `${user.rollNo} • Student` : "Candidate"}
                 </p>
               </div>
             )}
