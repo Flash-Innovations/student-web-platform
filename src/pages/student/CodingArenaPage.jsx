@@ -26,6 +26,7 @@ import { Modal } from "../../components/common/Modal";
 import { ProblemStatement } from "../../components/common/ProblemStatement";
 import { CodeEditor } from "../../components/common/CodeEditor";
 import { practiceService } from "../../services/practiceService";
+import { studentService } from "../../services/studentService";
 
 const STARTER_TEMPLATES = {
   python: `# Python 3 Solution
@@ -159,6 +160,14 @@ export function CodingArenaPage() {
     }
     setError(null);
     try {
+      // Real-time branch coding arena permission check
+      const student = await studentService.getCurrentStudent().catch(() => null);
+      if (student && student.codingArenaEnabled === false) {
+        setError("Coding Arena practice has been disabled for your academic cohort by your department / branch coordinator.");
+        setLoading(false);
+        return;
+      }
+
       const data = await practiceService.getDeliveredQuestions(attemptId);
       if (!data || !data.questions || data.questions.length === 0) {
         throw new Error("No coding questions found for this practice attempt.");

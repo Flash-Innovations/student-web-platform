@@ -27,13 +27,16 @@ import {
   Clock,
   History,
   TrendingUp,
-  Award
+  Award,
+  Lock,
+  AlertTriangle
 } from "lucide-react";
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { practiceService } from "../../services/practiceService";
+import { studentService } from "../../services/studentService";
 import { useAuth } from "../../context/AuthContext";
 
 export function PracticeHubPage() {
@@ -44,6 +47,7 @@ export function PracticeHubPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [backendConnected, setBackendConnected] = useState(false);
+  const [codingArenaEnabled, setCodingArenaEnabled] = useState(true);
 
   // Progress & Streak state
   const [progress, setProgress] = useState(null);
@@ -158,9 +162,10 @@ export function PracticeHubPage() {
       await practiceService.checkHealth();
       setBackendConnected(true);
 
-      const [progressRes, streakRes] = await Promise.allSettled([
+      const [progressRes, streakRes, studentRes] = await Promise.allSettled([
         practiceService.getPracticeProgress(),
-        practiceService.getPracticeStreak()
+        practiceService.getPracticeStreak(),
+        studentService.getCurrentStudent()
       ]);
 
       if (progressRes.status === "fulfilled") {
@@ -168,6 +173,9 @@ export function PracticeHubPage() {
       }
       if (streakRes.status === "fulfilled") {
         setStreak(streakRes.value);
+      }
+      if (studentRes.status === "fulfilled" && studentRes.value) {
+        setCodingArenaEnabled(studentRes.value.codingArenaEnabled !== false);
       }
     } catch (err) {
       console.error("Failed to load practice data:", err);
@@ -381,17 +389,34 @@ export function PracticeHubPage() {
 
           <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Code2 className="w-4 h-4" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${codingArenaEnabled ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                {codingArenaEnabled ? <Code2 className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
               </div>
               <div>
-                <div className="text-xs font-bold text-slate-800">Coding Arena</div>
-                <div className="text-[11px] text-slate-500">{progress.categories.CODING?.completed || 0} completed • {progress.categories.CODING?.questionsCorrect || 0} solved</div>
+                <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  Coding Arena
+                  {!codingArenaEnabled && (
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                      Disabled
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  {codingArenaEnabled
+                    ? `${progress.categories.CODING?.completed || 0} completed • ${progress.categories.CODING?.questionsCorrect || 0} solved`
+                    : "Turned off by Department Coordinator"}
+                </div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-xs font-extrabold text-emerald-600">{progress.categories.CODING?.accuracy || 0}%</div>
-              <div className="text-[10px] text-slate-400">accuracy</div>
+              {codingArenaEnabled ? (
+                <>
+                  <div className="text-xs font-extrabold text-emerald-600">{progress.categories.CODING?.accuracy || 0}%</div>
+                  <div className="text-[10px] text-slate-400">accuracy</div>
+                </>
+              ) : (
+                <Badge variant="neutral" size="xs">Inactive</Badge>
+              )}
             </div>
           </div>
         </div>
@@ -439,8 +464,13 @@ export function PracticeHubPage() {
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
           }`}
         >
-          <Code2 className="w-4 h-4" />
+          {codingArenaEnabled ? <Code2 className="w-4 h-4" /> : <Lock className="w-4 h-4 text-amber-500" />}
           Coding Arena
+          {!codingArenaEnabled && (
+            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 font-bold">
+              Disabled
+            </span>
+          )}
         </button>
       </div>
 
@@ -566,54 +596,97 @@ export function PracticeHubPage() {
               <Code2 className="w-5 h-5 text-indigo-600" />
               Coding Practice Arena
             </h2>
-            <Button
-              variant="primary"
-              size="xs"
-              icon={ArrowRight}
-              onClick={() => navigate("/student/practice/coding")}
-            >
-              Explore All Challenges
-            </Button>
+            {codingArenaEnabled ? (
+              <Button
+                variant="primary"
+                size="xs"
+                icon={ArrowRight}
+                onClick={() => navigate("/student/practice/coding")}
+              >
+                Explore All Challenges
+              </Button>
+            ) : (
+              <Badge variant="warning" size="xs">
+                Disabled by Department
+              </Badge>
+            )}
           </div>
 
-          <Card className="p-6 border-slate-200 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-sm overflow-hidden relative">
-            <div className="relative z-10 max-w-2xl space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                  Live Compiler Sandbox
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                  C++, Java, Python, JS
-                </span>
+          {codingArenaEnabled ? (
+            <Card className="p-6 border-slate-200 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-sm overflow-hidden relative">
+              <div className="relative z-10 max-w-2xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                    Live Compiler Sandbox
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                    C++, Java, Python, JS
+                  </span>
+                </div>
+
+                <h3 className="text-xl font-extrabold tracking-tight text-white">
+                  Algorithmic & Data Structures Coding Practice
+                </h3>
+
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  Test your code against server-evaluated public sample tests and hidden boundary test cases with automated scoring, time limits, and memory limits.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={Play}
+                    onClick={() => navigate("/student/practice/coding")}
+                    className="bg-indigo-500 hover:bg-indigo-400 text-white border-0 shadow-sm"
+                  >
+                    Enter Coding Arena
+                  </Button>
+                  <span className="text-xs text-slate-400">
+                    Automated scoring • Zero setup required
+                  </span>
+                </div>
               </div>
 
-              <h3 className="text-xl font-extrabold tracking-tight text-white">
-                Algorithmic & Data Structures Coding Practice
-              </h3>
+              {/* Decorative bg icon */}
+              <Code2 className="absolute -right-6 -bottom-6 w-48 h-48 text-white/5 pointer-events-none" />
+            </Card>
+          ) : (
+            <Card className="p-6 border-amber-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-sm overflow-hidden relative">
+              <div className="relative z-10 max-w-2xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" />
+                    Access Disabled by Academic Administration
+                  </span>
+                </div>
 
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Test your code against server-evaluated public sample tests and hidden boundary test cases with automated scoring, time limits, and memory limits.
-              </p>
+                <h3 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                  Coding Arena Is Currently Unavailable
+                </h3>
 
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={Play}
-                  onClick={() => navigate("/student/practice/coding")}
-                  className="bg-indigo-500 hover:bg-indigo-400 text-white border-0 shadow-sm"
-                >
-                  Enter Coding Arena
-                </Button>
-                <span className="text-xs text-slate-400">
-                  Automated scoring • Zero setup required
-                </span>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  Coding Arena practice sessions have been temporarily disabled for your academic branch / department. You can continue practicing Aptitude and Technical MCQs, or contact your department placement coordinator if you believe this is an error.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled
+                    className="opacity-50 cursor-not-allowed bg-white/10 text-white border-white/20"
+                  >
+                    Coding Arena Disabled
+                  </Button>
+                  <span className="text-xs text-amber-300/80">
+                    Disabled by Department / Branch Coordinator
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {/* Decorative bg icon */}
-            <Code2 className="absolute -right-6 -bottom-6 w-48 h-48 text-white/5 pointer-events-none" />
-          </Card>
+              <Lock className="absolute -right-6 -bottom-6 w-48 h-48 text-white/5 pointer-events-none" />
+            </Card>
+          )}
         </div>
       )}
 

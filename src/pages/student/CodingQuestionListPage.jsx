@@ -16,12 +16,14 @@ import {
   RotateCcw,
   Sparkles,
   Trophy,
-  Filter
+  Filter,
+  Lock
 } from "lucide-react";
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { practiceService } from "../../services/practiceService";
+import { studentService } from "../../services/studentService";
 
 export function CodingQuestionListPage() {
   const navigate = useNavigate();
@@ -37,6 +39,7 @@ export function CodingQuestionListPage() {
     return new Set(cachedStatus?.attemptedQuestionIds || []);
   });
   const [loading, setLoading] = useState(() => !(practiceService.getCachedCodingQuestions()?.length > 0));
+  const [codingArenaEnabled, setCodingArenaEnabled] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [startingQuestionId, setStartingQuestionId] = useState(null);
@@ -56,11 +59,15 @@ export function CodingQuestionListPage() {
     }
     setError(null);
     try {
-      const [questionsData, statusData] = await Promise.all([
+      const [questionsData, statusData, studentData] = await Promise.all([
         practiceService.getCodingQuestions({}, { forceRefresh }),
-        practiceService.getCodingSolveStatus({ forceRefresh })
+        practiceService.getCodingSolveStatus({ forceRefresh }),
+        studentService.getCurrentStudent()
       ]);
 
+      if (studentData) {
+        setCodingArenaEnabled(studentData.codingArenaEnabled !== false);
+      }
       if (Array.isArray(questionsData)) {
         setQuestions(questionsData);
       }
@@ -84,6 +91,10 @@ export function CodingQuestionListPage() {
   }, []);
 
   const handleSolveChallenge = async (questionId) => {
+    if (!codingArenaEnabled) {
+      setStartError("Coding Arena practice is currently turned off for your branch by your department coordinator.");
+      return;
+    }
     setStartingQuestionId(questionId);
     setStartError(null);
     try {
@@ -209,6 +220,31 @@ export function CodingQuestionListPage() {
           </Button>
         </div>
       </div>
+
+      {/* Coding Arena Disabled Banner */}
+      {!codingArenaEnabled && (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3 shadow-2xs">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
+            <Lock className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-bold text-amber-900">
+              Coding Arena Disabled by Academic Administration
+            </h3>
+            <p className="text-xs text-amber-800/90 mt-0.5 leading-relaxed">
+              Your academic department or branch coordinator has currently disabled coding arena practice challenges for your cohort. Starting new challenge sessions and live code execution are temporarily locked.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => navigate("/student/practice")}
+            className="border-amber-300 text-amber-900 hover:bg-amber-100 shrink-0"
+          >
+            Go to Practice Hub
+          </Button>
+        </div>
+      )}
 
       {/* Progress & Solved Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

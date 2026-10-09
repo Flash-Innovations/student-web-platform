@@ -65,7 +65,8 @@ export const studentService = {
           age: typeof student.age === 'number' ? student.age : null,
           internships: typeof student.internships === 'number' ? student.internships : null,
           hostel: typeof student.hostel === 'boolean' ? student.hostel : null,
-          historyOfBacklogs: typeof student.historyOfBacklogs === 'number' ? student.historyOfBacklogs : null,
+          codingArenaEnabled: student.codingArenaEnabled !== false,
+          departmentId: student.departmentId || null,
           metrics: {
             employabilityIndex: readiness,
             placementProbability,
@@ -87,6 +88,19 @@ export const studentService = {
     }
 
     return null;
+  },
+
+  /**
+   * Check dynamic Coding Arena access permission for current student
+   */
+  async getCodingArenaStatus() {
+    try {
+      const res = await api.get('/api/student/coding-arena-status');
+      return res?.codingArenaEnabled !== false;
+    } catch (e) {
+      const student = await this.getCurrentStudent();
+      return student?.codingArenaEnabled !== false;
+    }
   },
 
   /**
