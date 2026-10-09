@@ -44,16 +44,33 @@ export function PracticeHubPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const studentBranch = user?.branch || user?.department || "";
+  const studentCourse = user?.course || "";
+
+  // Synchronous SWR cache initialization for 0ms instant paint
+  const cachedCurriculum = practiceService.getCachedStudentCurriculum({
+    department: studentBranch,
+    branch: studentBranch,
+    course: studentCourse
+  });
+  const cachedProgress = practiceService.getCachedPracticeProgress();
+  const cachedStreak = practiceService.getCachedPracticeStreak();
+
   const [activeTab, setActiveTab] = useState("all"); // "all" | "aptitude" | "technical" | "coding"
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedCurriculum && !cachedProgress);
   const [error, setError] = useState(null);
-  const [backendConnected, setBackendConnected] = useState(false);
+  const [backendConnected, setBackendConnected] = useState(true);
   const [codingArenaEnabled, setCodingArenaEnabled] = useState(true);
-  const [curriculumSubjects, setCurriculumSubjects] = useState([]);
+  const [curriculumSubjects, setCurriculumSubjects] = useState(() => {
+    if (Array.isArray(cachedCurriculum) && cachedCurriculum.length > 0) {
+      return cachedCurriculum;
+    }
+    return [...defaultAptitude, ...defaultTechnical];
+  });
 
   // Progress & Streak state
-  const [progress, setProgress] = useState(null);
-  const [streak, setStreak] = useState(null);
+  const [progress, setProgress] = useState(cachedProgress);
+  const [streak, setStreak] = useState(cachedStreak);
 
   // Modal / Start Attempt state
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -180,47 +197,60 @@ export function PracticeHubPage() {
   ];
 
   const fetchPracticeData = async () => {
-    setLoading(true);
-    setError(null);
     try {
-      await practiceService.checkHealth();
-      setBackendConnected(true);
-
-      const [progressRes, streakRes, studentRes] = await Promise.allSettled([
+      // Execute all fetches concurrently in parallel (0 sequential blocking)
+      const [healthRes, progressRes, streakRes, studentRes, curriculumRes] = await Promise.allSettled([
+        practiceService.checkHealth(),
         practiceService.getPracticeProgress(),
         practiceService.getPracticeStreak(),
-        studentService.getCurrentStudent()
-      ]);
-
-      let studentBranch = user?.branch || user?.department || "";
-      let studentCourse = user?.course || "";
-
-      if (studentRes.status === "fulfilled" && studentRes.value) {
-        setCodingArenaEnabled(studentRes.value.codingArenaEnabled !== false);
-        if (studentRes.value.branch) studentBranch = studentRes.value.branch;
-        if (studentRes.value.course) studentCourse = studentRes.value.course;
-      }
-
-      let curriculumSubjectsData = [];
-      try {
-        curriculumSubjectsData = await practiceService.getStudentCurriculum({
+        studentService.getCurrentStudent(),
+        practiceService.getStudentCurriculum({
           department: studentBranch,
           branch: studentBranch,
           course: studentCourse
-        });
-      } catch (curriculumErr) {
-        console.warn("Failed to fetch dynamic curriculum, using defaults:", curriculumErr);
+        })
+      ]);
+
+      if (healthRes.status === "fulfilled") {
+        setBackendConnected(true);
       }
 
-      if (Array.isArray(curriculumSubjectsData) && curriculumSubjectsData.length > 0) {
-        setCurriculumSubjects(curriculumSubjectsData);
-      } else {
-        setCurriculumSubjects([...defaultAptitude, ...defaultTechnical]);
+      if (progressRes.status === "fulfilled" && progressRes.value) {
+        setProgress(progressRes.value);
+      }
+
+      if (streakRes.status === "fulfilled" && streakRes.value) {
+        setStreak(streakRes.value);
+      }
+
+      let activeBranch = studentBranch;
+      let activeCourse = studentCourse;
+
+      if (studentRes.status === "fulfilled" && studentRes.value) {
+        setCodingArenaEnabled(studentRes.value.codingArenaEnabled !== false);
+        if (studentRes.value.branch) activeBranch = studentRes.value.branch;
+        if (studentRes.value.course) activeCourse = studentRes.value.course;
+      }
+
+      if (curriculumRes.status === "fulfilled" && Array.isArray(curriculumRes.value) && curriculumRes.value.length > 0) {
+        setCurriculumSubjects(curriculumRes.value);
+      } else if (activeBranch !== studentBranch || activeCourse !== studentCourse) {
+        try {
+          const refinedCurriculum = await practiceService.getStudentCurriculum({
+            department: activeBranch,
+            branch: activeBranch,
+            course: activeCourse
+          });
+          if (Array.isArray(refinedCurriculum) && refinedCurriculum.length > 0) {
+            setCurriculumSubjects(refinedCurriculum);
+          }
+        } catch {}
       }
     } catch (err) {
-      console.error("Failed to load practice data:", err);
-      setError(err.message || "Unable to communicate with the Practice Platform service.");
-      setBackendConnected(false);
+      console.error("Failed to revalidate practice data:", err);
+      if (!curriculumSubjects || curriculumSubjects.length === 0) {
+        setError(err.message || "Unable to communicate with the Practice Platform service.");
+      }
     } finally {
       setLoading(false);
     }

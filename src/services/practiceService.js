@@ -1,38 +1,81 @@
 import { practiceApi } from './practiceApi';
 
 /**
- * Practice Platform In-Memory SWR Cache Store
- * Eliminates 1-2 second roundtrips and blank loading flickers on navigation.
+ * Practice Platform Hybrid In-Memory & SessionStorage SWR Cache Store
+ * Eliminates 1-2 second roundtrips, blank loading flickers on navigation,
+ * and enables instant 0ms paints on browser reload.
  */
 const cacheStore = new Map();
 const inFlightRequests = new Map();
-const DEFAULT_TTL = 3 * 60 * 1000; // 3 minutes
+const DEFAULT_TTL = 10 * 60 * 1000; // 10 minutes cache freshness
+const SESSION_CACHE_PREFIX = 'sips_swr_';
 
 function getCached(key, maxAge = DEFAULT_TTL) {
+  // 1. Check in-memory store
   const entry = cacheStore.get(key);
-  if (!entry) return null;
-  const isExpired = Date.now() - entry.timestamp > maxAge;
-  if (isExpired) return null;
-  return entry.data;
+  if (entry) {
+    const isExpired = Date.now() - entry.timestamp > maxAge;
+    if (!isExpired) return entry.data;
+  }
+
+  // 2. Fallback to sessionStorage for instant 0ms restoration on reload
+  try {
+    const raw = typeof window !== 'undefined' ? window.sessionStorage.getItem(`${SESSION_CACHE_PREFIX}${key}`) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.timestamp === 'number') {
+        const isExpired = Date.now() - parsed.timestamp > maxAge;
+        if (!isExpired) {
+          cacheStore.set(key, parsed);
+          return parsed.data;
+        }
+      }
+    }
+  } catch {}
+
+  return null;
 }
 
 function setCached(key, data) {
-  cacheStore.set(key, {
+  const payload = {
     data,
     timestamp: Date.now()
-  });
+  };
+  cacheStore.set(key, payload);
+  try {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(`${SESSION_CACHE_PREFIX}${key}`, JSON.stringify(payload));
+    }
+  } catch {}
 }
 
 function invalidateCache(pattern) {
   if (!pattern) {
     cacheStore.clear();
+    try {
+      if (typeof window !== 'undefined') {
+        Object.keys(window.sessionStorage)
+          .filter((k) => k.startsWith(SESSION_CACHE_PREFIX))
+          .forEach((k) => window.sessionStorage.removeItem(k));
+      }
+    } catch {}
     return;
   }
   for (const key of cacheStore.keys()) {
     if (typeof pattern === 'string' && key.includes(pattern)) {
       cacheStore.delete(key);
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem(`${SESSION_CACHE_PREFIX}${key}`);
+        }
+      } catch {}
     } else if (pattern instanceof RegExp && pattern.test(key)) {
       cacheStore.delete(key);
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem(`${SESSION_CACHE_PREFIX}${key}`);
+        }
+      } catch {}
     }
   }
 }
@@ -101,6 +144,15 @@ export const practiceService = {
 
   getCachedPracticeStreak() {
     return getCached('practice_streak');
+  },
+
+  getCachedStudentCurriculum(params = {}) {
+    const query = new URLSearchParams();
+    if (params.department) query.set('department', params.department);
+    if (params.branch) query.set('branch', params.branch);
+    if (params.course) query.set('course', params.course);
+    const qs = query.toString();
+    return getCached(`student_curriculum_${qs || 'default'}`);
   },
 
   invalidateSolveStatus() {
@@ -755,17 +807,25 @@ export const practiceService = {
   },
 
   /**
-   * Get personalized curriculum tailored to student's program / department
+   * Get personalized curriculum tailored to student's program / department (Cached SWR)
    */
-  async getStudentCurriculum(params = {}) {
+  async getStudentCurriculum(params = {}, options = {}) {
     const query = new URLSearchParams();
     if (params.department) query.set('department', params.department);
     if (params.branch) query.set('branch', params.branch);
     if (params.course) query.set('course', params.course);
 
     const qs = query.toString();
-    const res = await practiceApi.get(`/api/practice/student/curriculum${qs ? `?${qs}` : ''}`);
-    return res?.data || res;
+    const cacheKey = `student_curriculum_${qs || 'default'}`;
+
+    return cachedFetch(
+      cacheKey,
+      async () => {
+        const res = await practiceApi.get(`/api/practice/student/curriculum${qs ? `?${qs}` : ''}`);
+        return res?.data || res;
+      },
+      { forceRefresh: options.forceRefresh, ttl: options.ttl || DEFAULT_TTL }
+    );
   }
 };
 
