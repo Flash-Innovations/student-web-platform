@@ -186,27 +186,34 @@ export function PracticeHubPage() {
       await practiceService.checkHealth();
       setBackendConnected(true);
 
-      const [progressRes, streakRes, studentRes, curriculumRes] = await Promise.allSettled([
+      const [progressRes, streakRes, studentRes] = await Promise.allSettled([
         practiceService.getPracticeProgress(),
         practiceService.getPracticeStreak(),
-        studentService.getCurrentStudent(),
-        practiceService.getStudentCurriculum({
-          department: user?.department || user?.branch || "",
-          branch: user?.branch || ""
-        })
+        studentService.getCurrentStudent()
       ]);
 
-      if (progressRes.status === "fulfilled") {
-        setProgress(progressRes.value);
-      }
-      if (streakRes.status === "fulfilled") {
-        setStreak(streakRes.value);
-      }
+      let studentBranch = user?.branch || user?.department || "";
+      let studentCourse = user?.course || "";
+
       if (studentRes.status === "fulfilled" && studentRes.value) {
         setCodingArenaEnabled(studentRes.value.codingArenaEnabled !== false);
+        if (studentRes.value.branch) studentBranch = studentRes.value.branch;
+        if (studentRes.value.course) studentCourse = studentRes.value.course;
       }
-      if (curriculumRes.status === "fulfilled" && Array.isArray(curriculumRes.value) && curriculumRes.value.length > 0) {
-        setCurriculumSubjects(curriculumRes.value);
+
+      let curriculumSubjectsData = [];
+      try {
+        curriculumSubjectsData = await practiceService.getStudentCurriculum({
+          department: studentBranch,
+          branch: studentBranch,
+          course: studentCourse
+        });
+      } catch (curriculumErr) {
+        console.warn("Failed to fetch dynamic curriculum, using defaults:", curriculumErr);
+      }
+
+      if (Array.isArray(curriculumSubjectsData) && curriculumSubjectsData.length > 0) {
+        setCurriculumSubjects(curriculumSubjectsData);
       } else {
         setCurriculumSubjects([...defaultAptitude, ...defaultTechnical]);
       }
