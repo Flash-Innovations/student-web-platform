@@ -36,9 +36,128 @@ import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
+import { Skeleton, TableSkeleton } from "../../components/common/LoadingSkeleton";
 import { practiceService } from "../../services/practiceService";
 import { studentService } from "../../services/studentService";
 import { useAuth } from "../../context/AuthContext";
+
+const ICON_MAP = {
+  Calculator,
+  Compass,
+  BookOpen,
+  PieChart,
+  Binary,
+  Database,
+  Cpu,
+  Network,
+  Layers,
+  TableProperties,
+  Sparkles,
+  ShieldCheck,
+  Award,
+  TrendingUp,
+  Code2,
+  Briefcase
+};
+
+const COLOR_MAP = {
+  indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
+  sky: "bg-sky-50 text-sky-600 border-sky-100",
+  emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
+  amber: "bg-amber-50 text-amber-600 border-amber-100",
+  purple: "bg-purple-50 text-purple-600 border-purple-100",
+  rose: "bg-rose-50 text-rose-600 border-rose-100",
+  violet: "bg-violet-50 text-violet-600 border-violet-100",
+  teal: "bg-teal-50 text-teal-600 border-teal-100",
+  blue: "bg-blue-50 text-blue-600 border-blue-100"
+};
+
+const defaultAptitude = [
+  {
+    id: "QUANTITATIVE",
+    name: "Quantitative Aptitude",
+    type: "APTITUDE",
+    icon: "Calculator",
+    color: "indigo",
+    description: "Arithmetic, speed-distance-time, work-time, percentages, and profit-loss.",
+    topics: ["Time & Work", "Speed & Distance", "Percentages", "Ratio & Proportion"]
+  },
+  {
+    id: "LOGICAL",
+    name: "Logical Reasoning",
+    type: "APTITUDE",
+    icon: "Compass",
+    color: "sky",
+    description: "Series completion, syllogisms, blood relations, and coding-decoding.",
+    topics: ["Number Series", "Syllogisms", "Direction Sense", "Deductive Logic"]
+  },
+  {
+    id: "VERBAL",
+    name: "Verbal Ability",
+    type: "APTITUDE",
+    icon: "BookOpen",
+    color: "emerald",
+    description: "Vocabulary, reading comprehension, antonyms, and sentence correction.",
+    topics: ["Antonyms & Synonyms", "Sentence Correction", "Comprehension", "Grammar"]
+  },
+  {
+    id: "DATA_INTERPRETATION",
+    name: "Data Interpretation",
+    type: "APTITUDE",
+    icon: "PieChart",
+    color: "amber",
+    description: "Table charts, bar graphs, pie charts, and data sufficiency problems.",
+    topics: ["Table Charts", "Growth Rates", "Bar Graphs", "Data Analysis"]
+  }
+];
+
+const defaultTechnical = [
+  {
+    id: "DSA",
+    name: "Data Structures & Algorithms",
+    type: "TECHNICAL",
+    icon: "Binary",
+    color: "indigo",
+    description: "Arrays, stacks, queues, trees, searching, sorting, and time complexity.",
+    topics: ["Stacks & Queues", "Binary Search", "Tree Traversals", "Big-O Analysis"]
+  },
+  {
+    id: "OOP",
+    name: "Object-Oriented Programming",
+    type: "TECHNICAL",
+    icon: "Layers",
+    color: "violet",
+    description: "Encapsulation, inheritance, polymorphism, abstraction, and SOLID principles.",
+    topics: ["Dynamic Dispatch", "LSP & SOLID", "Method Overriding", "Abstract Classes"]
+  },
+  {
+    id: "DBMS",
+    name: "Database Management Systems",
+    type: "TECHNICAL",
+    icon: "Database",
+    color: "emerald",
+    description: "ACID properties, relational schema, indexing, transactions, and normalization.",
+    topics: ["ACID Isolation", "Normalization", "B-Trees & Indexing", "Transactions"]
+  },
+  {
+    id: "OS",
+    name: "Operating Systems",
+    type: "TECHNICAL",
+    icon: "Cpu",
+    color: "amber",
+    description: "Process synchronization, deadlock Coffman conditions, paging, and CPU scheduling.",
+    topics: ["Deadlock Conditions", "Virtual Memory", "Paging", "Thread Scheduling"]
+  },
+  {
+    id: "NETWORKS",
+    name: "Computer Networks",
+    type: "TECHNICAL",
+    icon: "Network",
+    color: "blue",
+    description: "OSI and TCP/IP stack, TCP vs UDP, IP addressing, DNS, and HTTP/HTTPS.",
+    topics: ["TCP vs UDP", "OSI 7-Layers", "DNS & Routing", "Handshakes"]
+  }
+];
 
 export function PracticeHubPage() {
   const navigate = useNavigate();
@@ -77,124 +196,6 @@ export function PracticeHubPage() {
   const [questionCount, setQuestionCount] = useState(5);
   const [startingAttempt, setStartingAttempt] = useState(false);
   const [startError, setStartError] = useState(null);
-
-  const ICON_MAP = {
-    Calculator,
-    Compass,
-    BookOpen,
-    PieChart,
-    Binary,
-    Database,
-    Cpu,
-    Network,
-    Layers,
-    TableProperties,
-    Sparkles,
-    ShieldCheck,
-    Award,
-    TrendingUp,
-    Code2,
-    Briefcase
-  };
-
-  const COLOR_MAP = {
-    indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
-    sky: "bg-sky-50 text-sky-600 border-sky-100",
-    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
-    amber: "bg-amber-50 text-amber-600 border-amber-100",
-    purple: "bg-purple-50 text-purple-600 border-purple-100",
-    rose: "bg-rose-50 text-rose-600 border-rose-100",
-    violet: "bg-violet-50 text-violet-600 border-violet-100",
-    teal: "bg-teal-50 text-teal-600 border-teal-100",
-    blue: "bg-blue-50 text-blue-600 border-blue-100"
-  };
-
-  const defaultAptitude = [
-    {
-      id: "QUANTITATIVE",
-      name: "Quantitative Aptitude",
-      type: "APTITUDE",
-      icon: "Calculator",
-      color: "indigo",
-      description: "Arithmetic, speed-distance-time, work-time, percentages, and profit-loss.",
-      topics: ["Time & Work", "Speed & Distance", "Percentages", "Ratio & Proportion"]
-    },
-    {
-      id: "LOGICAL",
-      name: "Logical Reasoning",
-      type: "APTITUDE",
-      icon: "Compass",
-      color: "sky",
-      description: "Series completion, syllogisms, blood relations, and coding-decoding.",
-      topics: ["Number Series", "Syllogisms", "Direction Sense", "Deductive Logic"]
-    },
-    {
-      id: "VERBAL",
-      name: "Verbal Ability",
-      type: "APTITUDE",
-      icon: "BookOpen",
-      color: "emerald",
-      description: "Vocabulary, reading comprehension, antonyms, and sentence correction.",
-      topics: ["Antonyms & Synonyms", "Sentence Correction", "Comprehension", "Grammar"]
-    },
-    {
-      id: "DATA_INTERPRETATION",
-      name: "Data Interpretation",
-      type: "APTITUDE",
-      icon: "PieChart",
-      color: "amber",
-      description: "Table charts, bar graphs, pie charts, and data sufficiency problems.",
-      topics: ["Table Charts", "Growth Rates", "Bar Graphs", "Data Analysis"]
-    }
-  ];
-
-  const defaultTechnical = [
-    {
-      id: "DSA",
-      name: "Data Structures & Algorithms",
-      type: "TECHNICAL",
-      icon: "Binary",
-      color: "indigo",
-      description: "Arrays, stacks, queues, trees, searching, sorting, and time complexity.",
-      topics: ["Stacks & Queues", "Binary Search", "Tree Traversals", "Big-O Analysis"]
-    },
-    {
-      id: "OOP",
-      name: "Object-Oriented Programming",
-      type: "TECHNICAL",
-      icon: "Layers",
-      color: "violet",
-      description: "Encapsulation, inheritance, polymorphism, abstraction, and SOLID principles.",
-      topics: ["Dynamic Dispatch", "LSP & SOLID", "Method Overriding", "Abstract Classes"]
-    },
-    {
-      id: "DBMS",
-      name: "Database Management Systems",
-      type: "TECHNICAL",
-      icon: "Database",
-      color: "emerald",
-      description: "ACID properties, relational schema, indexing, transactions, and normalization.",
-      topics: ["ACID Isolation", "Normalization", "B-Trees & Indexing", "Transactions"]
-    },
-    {
-      id: "OS",
-      name: "Operating Systems",
-      type: "TECHNICAL",
-      icon: "Cpu",
-      color: "amber",
-      description: "Process synchronization, deadlock Coffman conditions, paging, and CPU scheduling.",
-      topics: ["Deadlock Conditions", "Virtual Memory", "Paging", "Thread Scheduling"]
-    },
-    {
-      id: "NETWORKS",
-      name: "Computer Networks",
-      type: "TECHNICAL",
-      icon: "Network",
-      color: "blue",
-      description: "OSI and TCP/IP stack, TCP vs UDP, IP addressing, DNS, and HTTP/HTTPS.",
-      topics: ["TCP vs UDP", "OSI 7-Layers", "DNS & Routing", "Handshakes"]
-    }
-  ];
 
   const fetchPracticeData = async () => {
     try {
@@ -905,9 +906,19 @@ export function PracticeHubPage() {
         </div>
 
         {loading ? (
-          <div className="py-6 text-center text-slate-400 space-y-2">
-            <RefreshCw className="w-5 h-5 animate-spin mx-auto text-indigo-600" />
-            <p className="text-xs">Loading recent attempts...</p>
+          <div className="divide-y divide-slate-100">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="py-3 px-2 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-8 h-8 rounded-lg" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-40 rounded" />
+                    <Skeleton className="h-3 w-24 rounded" />
+                  </div>
+                </div>
+                <Skeleton className="h-4 w-16 rounded" />
+              </div>
+            ))}
           </div>
         ) : !progress?.recentActivity || progress.recentActivity.length === 0 ? (
           <div className="py-6 text-center text-slate-400 space-y-1">
