@@ -53,11 +53,12 @@ const StudentAssessmentDetailsPage = lazyNamed(() => import("../pages/student/St
 const StudentAssessmentWorkspacePage = lazyNamed(() => import("../pages/student/StudentAssessmentWorkspacePage"), "StudentAssessmentWorkspacePage");
 const StudentAssessmentResultPage = lazyNamed(() => import("../pages/student/StudentAssessmentResultPage"), "StudentAssessmentResultPage");
 
+import { PageSkeleton } from "../components/common/LoadingSkeleton";
+
 function RouteLoadingFallback() {
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center p-6">
-      <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin mb-3" />
-      <span className="text-xs font-mono font-semibold text-slate-500">Loading student workspace module...</span>
+    <div className="p-6 max-w-7xl mx-auto">
+      <PageSkeleton />
     </div>
   );
 }

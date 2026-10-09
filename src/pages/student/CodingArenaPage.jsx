@@ -27,6 +27,7 @@ import { ProblemStatement } from "../../components/common/ProblemStatement";
 import { CodeEditor } from "../../components/common/CodeEditor";
 import { practiceService } from "../../services/practiceService";
 import { studentService } from "../../services/studentService";
+import { WorkspaceSkeleton } from "../../components/common/LoadingSkeleton";
 
 const STARTER_TEMPLATES = {
   python: `# Python 3 Solution
@@ -364,13 +365,7 @@ export function CodingArenaPage() {
   };
 
   if (loading) {
-    return (
-      <div className="py-24 text-center text-slate-400 space-y-3 animate-in fade-in">
-        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-600" />
-        <h3 className="font-bold text-slate-800 text-base">Initializing Coding Workspace</h3>
-        <p className="text-xs text-slate-500">Connecting to secure Judge0 execution pipeline...</p>
-      </div>
-    );
+    return <WorkspaceSkeleton />;
   }
 
   if (error || !question) {

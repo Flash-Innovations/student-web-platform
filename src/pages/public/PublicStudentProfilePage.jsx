@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { studentService } from "../../services/studentService";
 import { resolveAssetUrl } from "../../services/api";
+import { DetailSkeleton } from "../../components/common/LoadingSkeleton";
 
 function GithubIcon(props) {
   return (
@@ -97,13 +98,8 @@ export function PublicStudentProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-6">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shadow-sm">
-            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-          </div>
-          <p className="text-slate-600 font-medium">Loading SIPS Career Profile...</p>
-        </div>
+      <div className="min-h-screen bg-slate-50 p-6 md:p-10">
+        <DetailSkeleton />
       </div>
     );
   }

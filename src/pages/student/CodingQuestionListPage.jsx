@@ -393,9 +393,23 @@ export function CodingQuestionListPage() {
 
       {/* Problems List */}
       {loading ? (
-        <div className="py-16 text-center text-slate-400 space-y-3">
-          <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
-          <p className="text-xs font-medium">Loading coding challenges and your solve status...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="p-5 rounded-2xl border border-slate-200/80 bg-white space-y-4 shadow-2xs animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="h-5 w-20 rounded-md bg-slate-200" />
+                <div className="h-5 w-16 rounded-md bg-slate-200" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-5 w-3/4 rounded bg-slate-200" />
+                <div className="h-4 w-full rounded bg-slate-100" />
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="h-4 w-24 rounded bg-slate-100" />
+                <div className="h-8 w-24 rounded-xl bg-slate-200" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : error ? (
         <Card className="p-8 text-center max-w-md mx-auto space-y-3 border-rose-200 bg-rose-50/50">

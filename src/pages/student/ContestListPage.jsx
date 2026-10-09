@@ -182,10 +182,24 @@ export function ContestListPage() {
 
       {/* Contests Grid */}
       {loading ? (
-        <div className="py-20 text-center space-y-3">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-600" />
-          <h3 className="text-sm font-bold text-slate-800">Loading Scheduled Contests...</h3>
-          <p className="text-xs text-slate-400">Fetching live and scheduled placement assessments from SIPS server...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="p-6 rounded-2xl border border-slate-200/90 bg-white space-y-4 shadow-2xs animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="h-5 w-20 rounded-md bg-slate-200" />
+                <div className="h-5 w-16 rounded-md bg-slate-200" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-6 w-3/4 rounded bg-slate-200" />
+                <div className="h-4 w-full rounded bg-slate-100" />
+                <div className="h-4 w-2/3 rounded bg-slate-100" />
+              </div>
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="h-4 w-24 rounded bg-slate-100" />
+                <div className="h-9 w-28 rounded-xl bg-slate-200" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredContests.length === 0 ? (
         <Card className="p-12 border-slate-200/90 text-center max-w-md mx-auto space-y-3">

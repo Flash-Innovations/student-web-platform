@@ -21,6 +21,7 @@ import {
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
+import { DetailSkeleton } from "../../components/common/LoadingSkeleton";
 import { practiceService } from "../../services/practiceService";
 import { cn } from "../../utils/cn";
 
@@ -51,13 +52,7 @@ export function ContestResultPage() {
   }, [contestId, attemptId]);
 
   if (loading) {
-    return (
-      <div className="py-24 text-center space-y-3">
-        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-600" />
-        <h3 className="text-base font-bold text-slate-800">Calculating Official Contest Score...</h3>
-        <p className="text-xs text-slate-500">Retrieving server-evaluated sectional scores and performance metrics...</p>
-      </div>
-    );
+    return <DetailSkeleton />;
   }
 
   if (error || !result) {

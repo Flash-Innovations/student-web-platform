@@ -31,6 +31,7 @@ import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { CodeEditor } from "../../components/common/CodeEditor";
 import { practiceService } from "../../services/practiceService";
+import { WorkspaceSkeleton } from "../../components/common/LoadingSkeleton";
 import { cn } from "../../utils/cn";
 
 const STARTER_TEMPLATES = {
@@ -638,12 +639,8 @@ export function ContestWorkspacePage() {
   // Render Loading
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
-        <RefreshCw className="w-10 h-10 animate-spin text-indigo-600" />
-        <div className="text-center">
-          <h3 className="text-base font-bold text-slate-900">Loading Assessment Workspace...</h3>
-          <p className="text-xs text-slate-500 mt-1">Calibrating server clock and syncing questions...</p>
-        </div>
+      <div className="p-6 max-w-7xl mx-auto">
+        <WorkspaceSkeleton />
       </div>
     );
   }

@@ -21,6 +21,7 @@ import {
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
+import { TableSkeleton } from "../../components/common/LoadingSkeleton";
 import { practiceService } from "../../services/practiceService";
 
 export function PracticeHistoryPage() {
@@ -201,9 +202,8 @@ export function PracticeHistoryPage() {
       {/* History List Table / Cards */}
       <Card className="border-slate-200 shadow-2xs overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center space-y-3">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
-            <p className="text-xs text-slate-500">Loading your practice records...</p>
+          <div className="p-4">
+            <TableSkeleton rows={6} cols={5} />
           </div>
         ) : attempts.length === 0 ? (
           <div className="py-16 text-center space-y-3 max-w-sm mx-auto">

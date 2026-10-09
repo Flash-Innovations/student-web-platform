@@ -21,6 +21,7 @@ import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { ProblemStatement } from "../../components/common/ProblemStatement";
 import { practiceService } from "../../services/practiceService";
+import { DetailSkeleton } from "../../components/common/LoadingSkeleton";
 import {
   normalizeOptions,
   isOptionSelected,
@@ -180,10 +181,8 @@ export function PracticeSessionPage() {
 
   if (loading) {
     return (
-      <div className="py-24 text-center space-y-3">
-        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-600" />
-        <h3 className="text-base font-bold text-slate-800">Loading Practice Questions...</h3>
-        <p className="text-xs text-slate-500">Preparing server-delivered question session...</p>
+      <div className="max-w-5xl mx-auto py-6">
+        <DetailSkeleton />
       </div>
     );
   }

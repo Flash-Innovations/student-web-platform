@@ -20,6 +20,7 @@ import {
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
+import { TableSkeleton } from "../../components/common/LoadingSkeleton";
 import { practiceService } from "../../services/practiceService";
 import { useAuth } from "../../context/AuthContext";
 import { cn } from "../../utils/cn";
@@ -106,10 +107,8 @@ export function ContestLeaderboardPage() {
 
   if (loading && !leaderboardData) {
     return (
-      <div className="py-24 text-center space-y-3 max-w-md mx-auto">
-        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-600" />
-        <h3 className="text-base font-bold text-slate-800">Calculating Institutional Rankings...</h3>
-        <p className="text-xs text-slate-500">Retrieving server-evaluated leaderboard and dynamic competition ranks...</p>
+      <div className="max-w-5xl mx-auto space-y-6">
+        <TableSkeleton rows={8} cols={5} />
       </div>
     );
   }

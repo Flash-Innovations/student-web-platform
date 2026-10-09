@@ -32,6 +32,7 @@ import { Modal } from "../../components/common/Modal";
 import { CodeEditor } from "../../components/common/CodeEditor";
 import { practiceService } from "../../services/practiceService";
 import { practiceApi } from "../../services/practiceApi";
+import { WorkspaceSkeleton } from "../../components/common/LoadingSkeleton";
 import { cn } from "../../utils/cn";
 
 const STARTER_TEMPLATES = {
@@ -512,9 +513,8 @@ export function StudentAssessmentWorkspacePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white space-y-4">
-        <RefreshCw className="w-10 h-10 animate-spin text-indigo-400" />
-        <p className="text-sm font-medium text-slate-300">Loading your secure assessment session...</p>
+      <div className="p-6 max-w-7xl mx-auto">
+        <WorkspaceSkeleton />
       </div>
     );
   }

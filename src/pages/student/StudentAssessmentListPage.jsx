@@ -19,6 +19,7 @@ import {
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
+import { CardGridSkeleton } from "../../components/common/LoadingSkeleton";
 import { practiceService } from "../../services/practiceService";
 import { useAuth } from "../../context/AuthContext";
 
@@ -154,19 +155,7 @@ export function StudentAssessmentListPage() {
 
       {/* Loading state */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="p-6 animate-pulse bg-white border border-slate-200">
-              <div className="h-4 bg-slate-200 rounded-md w-1/3 mb-3" />
-              <div className="h-6 bg-slate-200 rounded-md w-3/4 mb-4" />
-              <div className="h-16 bg-slate-100 rounded-lg mb-4" />
-              <div className="flex justify-between items-center pt-2">
-                <div className="h-8 bg-slate-200 rounded-md w-24" />
-                <div className="h-8 bg-slate-200 rounded-md w-28" />
-              </div>
-            </Card>
-          ))}
-        </div>
+        <CardGridSkeleton count={4} />
       ) : filteredAssessments.length === 0 ? (
         <Card className="p-12 text-center bg-white border-dashed border-2 border-slate-200 rounded-2xl">
           <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-4">
