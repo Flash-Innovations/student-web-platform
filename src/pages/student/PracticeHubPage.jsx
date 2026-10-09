@@ -239,6 +239,7 @@ export function PracticeHubPage() {
       const attempt = await practiceService.createPracticeAttempt({
         type: selectedCategory.type,
         category: selectedCategory.id,
+        subjectId: selectedCategory.subjectId,
         questionCount: parseInt(questionCount, 10) || 5
       });
 
@@ -551,6 +552,7 @@ export function PracticeHubPage() {
                   onClick={() => {
                     setSelectedCategory({
                       id: sub.code || sub.name,
+                      subjectId: sub.id,
                       title: sub.name,
                       type: "APTITUDE"
                     });
@@ -624,6 +626,7 @@ export function PracticeHubPage() {
                   onClick={() => {
                     setSelectedCategory({
                       id: sub.code || sub.name,
+                      subjectId: sub.id,
                       title: sub.name,
                       type: "TECHNICAL"
                     });
@@ -697,6 +700,7 @@ export function PracticeHubPage() {
                   onClick={() => {
                     setSelectedCategory({
                       id: sub.code || sub.name,
+                      subjectId: sub.id,
                       title: sub.name,
                       type: "NON_TECHNICAL"
                     });
