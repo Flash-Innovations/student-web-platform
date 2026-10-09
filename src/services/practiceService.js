@@ -732,6 +732,39 @@ export const practiceService = {
   async getAssessmentCandidateDetail(assessmentId, attemptId) {
     const res = await practiceApi.get(`/api/admin/assessments/${assessmentId}/results/${attemptId}`);
     return res?.data || res;
+  },
+
+  /**
+   * =========================================================================
+   * DYNAMIC CURRICULUM & SUBJECTS APIs
+   * =========================================================================
+   */
+
+  /**
+   * Get all active subjects
+   */
+  async getSubjects(params = {}) {
+    const query = new URLSearchParams();
+    if (params.type && params.type !== 'ALL') query.set('type', params.type);
+    if (params.search) query.set('search', params.search);
+
+    const qs = query.toString();
+    const res = await practiceApi.get(`/api/subjects${qs ? `?${qs}` : ''}`);
+    return res?.data || res;
+  },
+
+  /**
+   * Get personalized curriculum tailored to student's program / department
+   */
+  async getStudentCurriculum(params = {}) {
+    const query = new URLSearchParams();
+    if (params.department) query.set('department', params.department);
+    if (params.branch) query.set('branch', params.branch);
+    if (params.course) query.set('course', params.course);
+
+    const qs = query.toString();
+    const res = await practiceApi.get(`/api/practice/student/curriculum${qs ? `?${qs}` : ''}`);
+    return res?.data || res;
   }
 };
 

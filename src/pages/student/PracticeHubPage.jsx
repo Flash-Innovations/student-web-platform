@@ -48,6 +48,7 @@ export function PracticeHubPage() {
   const [error, setError] = useState(null);
   const [backendConnected, setBackendConnected] = useState(false);
   const [codingArenaEnabled, setCodingArenaEnabled] = useState(true);
+  const [curriculumSubjects, setCurriculumSubjects] = useState([]);
 
   // Progress & Streak state
   const [progress, setProgress] = useState(null);
@@ -59,99 +60,121 @@ export function PracticeHubPage() {
   const [startingAttempt, setStartingAttempt] = useState(false);
   const [startError, setStartError] = useState(null);
 
-  const aptitudeCategories = [
+  const ICON_MAP = {
+    Calculator,
+    Compass,
+    BookOpen,
+    PieChart,
+    Binary,
+    Database,
+    Cpu,
+    Network,
+    Layers,
+    TableProperties,
+    Sparkles,
+    ShieldCheck,
+    Award,
+    TrendingUp,
+    Code2,
+    Briefcase: BookOpen
+  };
+
+  const COLOR_MAP = {
+    indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
+    sky: "bg-sky-50 text-sky-600 border-sky-100",
+    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    amber: "bg-amber-50 text-amber-600 border-amber-100",
+    purple: "bg-purple-50 text-purple-600 border-purple-100",
+    rose: "bg-rose-50 text-rose-600 border-rose-100",
+    violet: "bg-violet-50 text-violet-600 border-violet-100",
+    teal: "bg-teal-50 text-teal-600 border-teal-100",
+    blue: "bg-blue-50 text-blue-600 border-blue-100"
+  };
+
+  const defaultAptitude = [
     {
       id: "QUANTITATIVE",
-      title: "Quantitative Aptitude",
+      name: "Quantitative Aptitude",
       type: "APTITUDE",
-      icon: Calculator,
+      icon: "Calculator",
       color: "indigo",
       description: "Arithmetic, speed-distance-time, work-time, percentages, and profit-loss.",
       topics: ["Time & Work", "Speed & Distance", "Percentages", "Ratio & Proportion"]
     },
     {
       id: "LOGICAL",
-      title: "Logical Reasoning",
+      name: "Logical Reasoning",
       type: "APTITUDE",
-      icon: Compass,
+      icon: "Compass",
       color: "sky",
       description: "Series completion, syllogisms, blood relations, and coding-decoding.",
       topics: ["Number Series", "Syllogisms", "Direction Sense", "Deductive Logic"]
     },
     {
       id: "VERBAL",
-      title: "Verbal Ability",
+      name: "Verbal Ability",
       type: "APTITUDE",
-      icon: BookOpen,
+      icon: "BookOpen",
       color: "emerald",
       description: "Vocabulary, reading comprehension, antonyms, and sentence correction.",
       topics: ["Antonyms & Synonyms", "Sentence Correction", "Comprehension", "Grammar"]
     },
     {
       id: "DATA_INTERPRETATION",
-      title: "Data Interpretation",
+      name: "Data Interpretation",
       type: "APTITUDE",
-      icon: PieChart,
+      icon: "PieChart",
       color: "amber",
       description: "Table charts, bar graphs, pie charts, and data sufficiency problems.",
       topics: ["Table Charts", "Growth Rates", "Bar Graphs", "Data Analysis"]
     }
   ];
 
-  const technicalCategories = [
+  const defaultTechnical = [
     {
       id: "DSA",
-      title: "Data Structures & Algorithms",
+      name: "Data Structures & Algorithms",
       type: "TECHNICAL",
-      icon: Binary,
+      icon: "Binary",
       color: "indigo",
       description: "Arrays, stacks, queues, trees, searching, sorting, and time complexity.",
       topics: ["Stacks & Queues", "Binary Search", "Tree Traversals", "Big-O Analysis"]
     },
     {
       id: "OOP",
-      title: "Object-Oriented Programming",
+      name: "Object-Oriented Programming",
       type: "TECHNICAL",
-      icon: Layers,
+      icon: "Layers",
       color: "violet",
       description: "Encapsulation, inheritance, polymorphism, abstraction, and SOLID principles.",
       topics: ["Dynamic Dispatch", "LSP & SOLID", "Method Overriding", "Abstract Classes"]
     },
     {
       id: "DBMS",
-      title: "Database Management Systems",
+      name: "Database Management Systems",
       type: "TECHNICAL",
-      icon: Database,
+      icon: "Database",
       color: "emerald",
       description: "ACID properties, relational schema, indexing, transactions, and normalization.",
       topics: ["ACID Isolation", "Normalization", "B-Trees & Indexing", "Transactions"]
     },
     {
       id: "OS",
-      title: "Operating Systems",
+      name: "Operating Systems",
       type: "TECHNICAL",
-      icon: Cpu,
+      icon: "Cpu",
       color: "amber",
       description: "Process synchronization, deadlock Coffman conditions, paging, and CPU scheduling.",
       topics: ["Deadlock Conditions", "Virtual Memory", "Paging", "Thread Scheduling"]
     },
     {
       id: "NETWORKS",
-      title: "Computer Networks",
+      name: "Computer Networks",
       type: "TECHNICAL",
-      icon: Network,
+      icon: "Network",
       color: "blue",
       description: "OSI and TCP/IP stack, TCP vs UDP, IP addressing, DNS, and HTTP/HTTPS.",
       topics: ["TCP vs UDP", "OSI 7-Layers", "DNS & Routing", "Handshakes"]
-    },
-    {
-      id: "SQL",
-      title: "SQL & Relational Queries",
-      type: "TECHNICAL",
-      icon: TableProperties,
-      color: "cyan",
-      description: "Aggregations, WHERE vs HAVING, JOIN types, subqueries, and window functions.",
-      topics: ["GROUP BY / HAVING", "Joins", "Aggregations", "Query Optimization"]
     }
   ];
 
@@ -162,10 +185,14 @@ export function PracticeHubPage() {
       await practiceService.checkHealth();
       setBackendConnected(true);
 
-      const [progressRes, streakRes, studentRes] = await Promise.allSettled([
+      const [progressRes, streakRes, studentRes, curriculumRes] = await Promise.allSettled([
         practiceService.getPracticeProgress(),
         practiceService.getPracticeStreak(),
-        studentService.getCurrentStudent()
+        studentService.getCurrentStudent(),
+        practiceService.getStudentCurriculum({
+          department: user?.department || user?.branch || "",
+          branch: user?.branch || ""
+        })
       ]);
 
       if (progressRes.status === "fulfilled") {
@@ -176,6 +203,11 @@ export function PracticeHubPage() {
       }
       if (studentRes.status === "fulfilled" && studentRes.value) {
         setCodingArenaEnabled(studentRes.value.codingArenaEnabled !== false);
+      }
+      if (curriculumRes.status === "fulfilled" && Array.isArray(curriculumRes.value) && curriculumRes.value.length > 0) {
+        setCurriculumSubjects(curriculumRes.value);
+      } else {
+        setCurriculumSubjects([...defaultAptitude, ...defaultTechnical]);
       }
     } catch (err) {
       console.error("Failed to load practice data:", err);
@@ -423,20 +455,20 @@ export function PracticeHubPage() {
       )}
 
       {/* Category Tab Filter */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab("all")}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === "all"
               ? "bg-indigo-600 text-white shadow-sm"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
           }`}
         >
-          All Categories
+          All Curriculum
         </button>
         <button
           onClick={() => setActiveTab("aptitude")}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === "aptitude"
               ? "bg-indigo-600 text-white shadow-sm"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -447,18 +479,31 @@ export function PracticeHubPage() {
         </button>
         <button
           onClick={() => setActiveTab("technical")}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === "technical"
               ? "bg-indigo-600 text-white shadow-sm"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
           }`}
         >
           <Binary className="w-4 h-4" />
-          Technical MCQs
+          Technical Core
         </button>
+        {curriculumSubjects.some((s) => s.type === "NON_TECHNICAL" || s.type === "GENERAL") && (
+          <button
+            onClick={() => setActiveTab("non_technical")}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "non_technical"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            }`}
+          >
+            <Briefcase className="w-4 h-4" />
+            Management & Commerce
+          </button>
+        )}
         <button
           onClick={() => setActiveTab("coding")}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === "coding"
               ? "bg-indigo-600 text-white shadow-sm"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -482,38 +527,54 @@ export function PracticeHubPage() {
               <BrainCircuit className="w-5 h-5 text-indigo-600" />
               Aptitude Practice Modules
             </h2>
-            <Badge variant="primary" size="xs">Self-Paced MCQs</Badge>
+            <Badge variant="primary" size="xs">Universal Modules</Badge>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {aptitudeCategories.map((cat) => {
-              const IconComponent = cat.icon;
+            {curriculumSubjects.filter((s) => s.type === "APTITUDE").map((sub) => {
+              const IconComponent = ICON_MAP[sub.icon] || Calculator;
+              const colorClass = COLOR_MAP[sub.color] || COLOR_MAP.indigo;
+              const topics = Array.isArray(sub.topics) ? sub.topics : [];
+
               return (
                 <Card
-                  key={cat.id}
+                  key={sub.id || sub.name}
                   className="p-5 border-slate-200/90 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex flex-col justify-between group cursor-pointer"
                   onClick={() => {
-                    setSelectedCategory(cat);
+                    setSelectedCategory({
+                      id: sub.code || sub.name,
+                      title: sub.name,
+                      type: "APTITUDE"
+                    });
                     setStartError(null);
                   }}
                 >
                   <div>
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-105 transition-transform ${colorClass}`}>
                       <IconComponent className="w-5 h-5" />
                     </div>
+                    {sub.code && (
+                      <span className="text-[10px] font-mono font-bold text-slate-400 block mb-0.5">
+                        {sub.code}
+                      </span>
+                    )}
                     <h3 className="font-bold text-slate-900 text-sm mb-1 group-hover:text-indigo-600 transition-colors">
-                      {cat.title}
+                      {sub.name}
                     </h3>
-                    <p className="text-xs text-slate-500 mb-3 line-clamp-2 leading-relaxed">
-                      {cat.description}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {cat.topics.map((t, idx) => (
-                        <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
+                    {sub.description && (
+                      <p className="text-xs text-slate-500 mb-3 line-clamp-2 leading-relaxed">
+                        {sub.description}
+                      </p>
+                    )}
+                    {topics.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {topics.slice(0, 4).map((t, idx) => (
+                          <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
+                            {typeof t === "string" ? t : t.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
@@ -537,40 +598,56 @@ export function PracticeHubPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Binary className="w-5 h-5 text-indigo-600" />
-              Technical Core MCQs
+              Technical & Engineering Core
             </h2>
-            <Badge variant="primary" size="xs">CS Fundamentals</Badge>
+            <Badge variant="primary" size="xs">Course Modules</Badge>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {technicalCategories.map((cat) => {
-              const IconComponent = cat.icon;
+            {curriculumSubjects.filter((s) => s.type === "TECHNICAL").map((sub) => {
+              const IconComponent = ICON_MAP[sub.icon] || Binary;
+              const colorClass = COLOR_MAP[sub.color] || COLOR_MAP.indigo;
+              const topics = Array.isArray(sub.topics) ? sub.topics : [];
+
               return (
                 <Card
-                  key={cat.id}
+                  key={sub.id || sub.name}
                   className="p-5 border-slate-200/90 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all flex flex-col justify-between group cursor-pointer"
                   onClick={() => {
-                    setSelectedCategory(cat);
+                    setSelectedCategory({
+                      id: sub.code || sub.name,
+                      title: sub.name,
+                      type: "TECHNICAL"
+                    });
                     setStartError(null);
                   }}
                 >
                   <div>
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-105 transition-transform ${colorClass}`}>
                       <IconComponent className="w-5 h-5" />
                     </div>
+                    {sub.code && (
+                      <span className="text-[10px] font-mono font-bold text-slate-400 block mb-0.5">
+                        {sub.code}
+                      </span>
+                    )}
                     <h3 className="font-bold text-slate-900 text-sm mb-1 group-hover:text-indigo-600 transition-colors">
-                      {cat.title}
+                      {sub.name}
                     </h3>
-                    <p className="text-xs text-slate-500 mb-3 line-clamp-2 leading-relaxed">
-                      {cat.description}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {cat.topics.map((t, idx) => (
-                        <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
+                    {sub.description && (
+                      <p className="text-xs text-slate-500 mb-3 line-clamp-2 leading-relaxed">
+                        {sub.description}
+                      </p>
+                    )}
+                    {topics.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {topics.slice(0, 4).map((t, idx) => (
+                          <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
+                            {typeof t === "string" ? t : t.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
@@ -578,6 +655,79 @@ export function PracticeHubPage() {
                       Start Session
                     </span>
                     <div className="w-7 h-7 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                      <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Non-Technical / Business Management Section */}
+      {(activeTab === "all" || activeTab === "non_technical") && curriculumSubjects.some((s) => s.type === "NON_TECHNICAL" || s.type === "GENERAL") && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-emerald-600" />
+              Management & Business Curriculum
+            </h2>
+            <Badge variant="success" size="xs">Commerce & Non-Tech</Badge>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {curriculumSubjects.filter((s) => s.type === "NON_TECHNICAL" || s.type === "GENERAL").map((sub) => {
+              const IconComponent = ICON_MAP[sub.icon] || Briefcase;
+              const colorClass = COLOR_MAP[sub.color] || COLOR_MAP.emerald;
+              const topics = Array.isArray(sub.topics) ? sub.topics : [];
+
+              return (
+                <Card
+                  key={sub.id || sub.name}
+                  className="p-5 border-slate-200/90 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all flex flex-col justify-between group cursor-pointer"
+                  onClick={() => {
+                    setSelectedCategory({
+                      id: sub.code || sub.name,
+                      title: sub.name,
+                      type: "NON_TECHNICAL"
+                    });
+                    setStartError(null);
+                  }}
+                >
+                  <div>
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-3 group-hover:scale-105 transition-transform ${colorClass}`}>
+                      <IconComponent className="w-5 h-5" />
+                    </div>
+                    {sub.code && (
+                      <span className="text-[10px] font-mono font-bold text-slate-400 block mb-0.5">
+                        {sub.code}
+                      </span>
+                    )}
+                    <h3 className="font-bold text-slate-900 text-sm mb-1 group-hover:text-emerald-600 transition-colors">
+                      {sub.name}
+                    </h3>
+                    {sub.description && (
+                      <p className="text-xs text-slate-500 mb-3 line-clamp-2 leading-relaxed">
+                        {sub.description}
+                      </p>
+                    )}
+                    {topics.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {topics.slice(0, 4).map((t, idx) => (
+                          <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
+                            {typeof t === "string" ? t : t.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-400 group-hover:text-emerald-600 transition-colors flex items-center gap-1">
+                      Start Session
+                    </span>
+                    <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                       <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                     </div>
                   </div>
