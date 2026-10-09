@@ -29,7 +29,8 @@ import {
   TrendingUp,
   Award,
   Lock,
-  AlertTriangle
+  AlertTriangle,
+  Briefcase
 } from "lucide-react";
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
@@ -76,7 +77,7 @@ export function PracticeHubPage() {
     Award,
     TrendingUp,
     Code2,
-    Briefcase: BookOpen
+    Briefcase
   };
 
   const COLOR_MAP = {
