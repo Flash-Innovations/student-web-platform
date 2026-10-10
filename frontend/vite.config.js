@@ -8,12 +8,26 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api/interviews': {
+        target: process.env.VITE_AI_API_URL || 'http://localhost:5055',
+        changeOrigin: true
+      },
+      '/ws/interview': {
+        target: process.env.VITE_AI_WS_URL || 'ws://localhost:5055',
+        ws: true,
+        changeOrigin: true
+      },
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true
       },
       '/uploads': {
         target: 'http://localhost:5000',
+        changeOrigin: true
+      },
+      '/ws': {
+        target: 'ws://localhost:5000',
+        ws: true,
         changeOrigin: true
       }
     }
