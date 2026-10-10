@@ -19,6 +19,7 @@ import {
 import { studentService } from "../../services/studentService";
 import { resolveAssetUrl } from "../../services/api";
 import { DetailSkeleton } from "../../components/common/LoadingSkeleton";
+import { getCanonicalSkillName } from "../../data/skillCatalogue";
 
 function GithubIcon(props) {
   return (
@@ -285,9 +286,9 @@ export function PublicStudentProfilePage() {
                 {skills.map((skill, index) => (
                   <span
                     key={index}
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-xs font-semibold text-slate-800 capitalize tracking-wide shadow-xs transition-colors"
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-xs font-semibold text-slate-800 tracking-wide shadow-xs transition-colors"
                   >
-                    {skill}
+                    {getCanonicalSkillName(skill)}
                   </span>
                 ))}
               </div>

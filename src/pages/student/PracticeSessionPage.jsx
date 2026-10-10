@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Code2,
@@ -19,7 +19,7 @@ import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
-import { ProblemStatement } from "../../components/common/ProblemStatement";
+// import { ProblemStatement } from "../../components/common/ProblemStatement";
 import { practiceService } from "../../services/practiceService";
 import { DetailSkeleton } from "../../components/common/LoadingSkeleton";
 import {
@@ -28,6 +28,15 @@ import {
   extractQuestionDetails,
   isQuestionAnswered
 } from "../../utils/questionUtils";
+
+// Lazy-load heavy components
+const ProblemStatement = lazy(() => import("../../components/common/ProblemStatement").then(m => ({ default: m.ProblemStatement })));
+
+function ProblemLoadingFallback() {
+  return (
+    <div className="h-32 animate-pulse bg-slate-100 rounded-xl border border-slate-200" />
+  );
+}
 
 export function PracticeSessionPage() {
   const { attemptId } = useParams();
@@ -50,7 +59,7 @@ export function PracticeSessionPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await practiceService.getDeliveredQuestions(attemptId);
+      const data = await practiceService.getDeliveredQuestions(attemptId, { forceRefresh: true });
       if (!data) {
         throw new Error("Invalid session response received from Practice service.");
       }
@@ -94,8 +103,13 @@ export function PracticeSessionPage() {
   }, [attemptId, navigate]);
 
   useEffect(() => {
+    // Clear previous session state immediately to prevent stale questions or answers
+    setQuestions([]);
+    setAnswers({});
+    setCurrentIndex(0);
+    setAttemptData(null);
     loadSession();
-  }, [loadSession]);
+  }, [attemptId, loadSession]);
 
   const currentQuestion = questions[currentIndex];
   const qvId = currentQuestion ? currentQuestion.questionVersionId || currentQuestion.id : null;
@@ -292,7 +306,9 @@ export function PracticeSessionPage() {
                 </h2>
               )}
               <div className="bg-slate-50/60 p-4 rounded-2xl border border-slate-100">
-                <ProblemStatement statement={currentQuestion.statement} />
+                <Suspense fallback={<ProblemLoadingFallback />}>
+                  <ProblemStatement statement={currentQuestion.statement} />
+                </Suspense>
               </div>
             </div>
 

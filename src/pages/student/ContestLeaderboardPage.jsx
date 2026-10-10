@@ -21,6 +21,7 @@ import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { TableSkeleton } from "../../components/common/LoadingSkeleton";
+import { DataTable } from "../../components/common/DataTable";
 import { practiceService } from "../../services/practiceService";
 import { useAuth } from "../../context/AuthContext";
 import { cn } from "../../utils/cn";
@@ -279,105 +280,38 @@ export function ContestLeaderboardPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-200">
-                  <th className="py-3 px-4 w-20 text-center">Rank</th>
-                  <th className="py-3 px-4">Student ID</th>
-                  <th className="py-3 px-4 text-center">Aptitude</th>
-                  <th className="py-3 px-4 text-center">Technical</th>
-                  <th className="py-3 px-4 text-center">Coding</th>
-                  <th className="py-3 px-4 text-right">Total Score</th>
-                  <th className="py-3 px-4 text-right">Submitted At</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {entries.map((entry) => {
-                  const isCurrentStudent = user?.id === entry.studentId || (myRank && myRank.studentId === entry.studentId);
-                  const formattedDate = entry.submittedAt
-                    ? new Date(entry.submittedAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })
-                    : "—";
-
-                  return (
-                    <tr
-                      key={entry.attemptId}
-                      className={cn(
-                        "transition-colors hover:bg-slate-50/80",
-                        isCurrentStudent && "bg-indigo-50/80 font-semibold text-indigo-950 ring-1 ring-indigo-200"
-                      )}
-                    >
-                      <td className="py-3.5 px-4 text-center font-bold">
-                        {getRankBadge(entry.rank)}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-slate-900">
-                            {entry.studentId}
-                          </span>
-                          {isCurrentStudent && (
-                            <Badge variant="primary" size="xs">
-                              You
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-center text-slate-600">
-                        {entry.aptitudeScore}
-                      </td>
-                      <td className="py-3.5 px-4 text-center text-slate-600">
-                        {entry.technicalScore}
-                      </td>
-                      <td className="py-3.5 px-4 text-center text-slate-600">
-                        {entry.codingScore}
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <span className="text-sm font-black text-slate-900">
-                          {entry.totalScore}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-normal ml-1">
-                          / {entry.totalMarks}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right text-slate-500 font-mono text-[11px]">
-                        {formattedDate}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="p-3.5 border-t border-slate-100 flex items-center justify-between bg-slate-50/40">
-            <Button
-              variant="outline"
-              size="xs"
-              icon={ChevronLeft}
-              disabled={currentPage <= 1 || loading}
-              onClick={() => fetchLeaderboard(currentPage - 1)}
-            >
-              Previous
-            </Button>
-            <span className="text-xs font-bold text-slate-600">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="xs"
-              icon={ChevronRight}
-              disabled={currentPage >= totalPages || loading}
-              onClick={() => fetchLeaderboard(currentPage + 1)}
-            >
-              Next
-            </Button>
-          </div>
+          <DataTable
+            columns={[
+              { key: 'rank', title: 'Rank', sortable: false, className: 'w-20 text-center', render: (entry) => getRankBadge(entry.rank) },
+              { key: 'studentId', title: 'Student ID', sortable: true, render: (entry) => (
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-slate-900">{entry.studentId}</span>
+                  {(user?.id === entry.studentId || (myRank && myRank.studentId === entry.studentId)) && (
+                    <Badge variant="primary" size="xs">You</Badge>
+                  )}
+                </div>
+              )},
+              { key: 'aptitudeScore', title: 'Aptitude', sortable: true, className: 'text-center text-slate-600' },
+              { key: 'technicalScore', title: 'Technical', sortable: true, className: 'text-center text-slate-600' },
+              { key: 'codingScore', title: 'Coding', sortable: true, className: 'text-center text-slate-600' },
+              { key: 'totalScore', title: 'Total Score', sortable: true, className: 'text-right', render: (entry) => (
+                <div className="flex justify-end items-center gap-1">
+                  <span className="text-sm font-black text-slate-900">{entry.totalScore}</span>
+                  <span className="text-[10px] text-slate-400 font-normal">/ {entry.totalMarks}</span>
+                </div>
+              )},
+              { key: 'submittedAt', title: 'Submitted At', sortable: true, className: 'text-right text-slate-500 font-mono text-[11px]', render: (entry) => 
+                entry.submittedAt ? new Date(entry.submittedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"
+              }
+            ]}
+            data={entries}
+            searchPlaceholder="Search by Student ID..."
+            searchKey="studentId"
+            pageSize={pageSize}
+            virtualized={entries.length > 100}
+            containerHeight={500}
+            className="border-t border-slate-200"
+          />
         )}
       </Card>
     </div>

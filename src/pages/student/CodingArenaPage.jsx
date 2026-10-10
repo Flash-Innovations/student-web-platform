@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   Code2,
@@ -23,11 +23,30 @@ import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
-import { ProblemStatement } from "../../components/common/ProblemStatement";
-import { CodeEditor } from "../../components/common/CodeEditor";
+// import { ProblemStatement } from "../../components/common/ProblemStatement";
+// import { CodeEditor } from "../../components/common/CodeEditor";
 import { practiceService } from "../../services/practiceService";
 import { studentService } from "../../services/studentService";
 import { WorkspaceSkeleton } from "../../components/common/LoadingSkeleton";
+
+// Lazy-load heavy components
+const CodeEditor = lazy(() => import("../../components/common/CodeEditor").then(m => ({ default: m.CodeEditor })));
+const ProblemStatement = lazy(() => import("../../components/common/ProblemStatement").then(m => ({ default: m.ProblemStatement })));
+
+function EditorLoadingFallback() {
+  return (
+    <div className="flex flex-col items-center justify-center h-[440px] text-slate-400 gap-2 p-8 bg-slate-950">
+      <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
+      <span className="text-xs font-semibold">Loading Monaco Code Engine...</span>
+    </div>
+  );
+}
+
+function ProblemLoadingFallback() {
+  return (
+    <div className="h-32 animate-pulse bg-slate-100 rounded-xl border border-slate-200" />
+  );
+}
 
 const STARTER_TEMPLATES = {
   python: `# Python 3 Solution
@@ -477,7 +496,9 @@ export function CodingArenaPage() {
                   <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-2">
                     Description & Specifications
                   </h4>
-                  <ProblemStatement statement={question.statement} />
+                  <Suspense fallback={<ProblemLoadingFallback />}>
+                    <ProblemStatement statement={question.statement} />
+                  </Suspense>
                 </div>
 
                 {/* Additional Input Format if custom */}
@@ -658,12 +679,14 @@ export function CodingArenaPage() {
 
             {/* Monaco Code Editor */}
             <div className="relative w-full h-[440px] bg-slate-950 overflow-hidden">
-              <CodeEditor
-                value={currentSourceCode}
-                onChange={handleSourceCodeChange}
-                language={language}
-                height="440px"
-              />
+              <Suspense fallback={<EditorLoadingFallback />}>
+                <CodeEditor
+                  value={currentSourceCode}
+                  onChange={handleSourceCodeChange}
+                  language={language}
+                  height="440px"
+                />
+              </Suspense>
             </div>
 
             {/* Action Bar Footer */}

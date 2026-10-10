@@ -299,10 +299,11 @@ export const practiceService = {
    * Start a self-paced practice session
    * @param {object} params - { type, category, questionCount, questionId }
    */
-  async createPracticeAttempt({ type, category, subjectId, questionCount = 10, questionId } = {}) {
+  async createPracticeAttempt({ type, category, subjectId, questionCount = 10, questionId, difficulty } = {}) {
     const payload = { type, category, questionCount };
     if (subjectId) payload.subjectId = subjectId;
     if (questionId) payload.questionId = questionId;
+    if (difficulty) payload.difficulty = difficulty;
     const res = await practiceApi.post('/api/practice/attempts', payload);
     return res?.data || res;
   },
