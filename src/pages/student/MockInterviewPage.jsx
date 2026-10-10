@@ -37,6 +37,7 @@ import { useAuth } from "../../context/AuthContext";
 import { studentService } from "../../services/studentService";
 import { interviewService } from "../../services/interviewService";
 import { useMockInterview } from "../../hooks/useMockInterview";
+import { SkillSelector } from "../../components/common/SkillSelector";
 
 export function MockInterviewPage() {
   const navigate = useNavigate();
@@ -371,47 +372,14 @@ export function MockInterviewPage() {
                 {/* Technical Skills Focus Selector (Only for Technical Interview) */}
                 {interviewType === "Technical Interview" ? (
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-xs sm:text-sm font-semibold text-slate-800">
-                        Technical Skills in Focus
-                      </label>
-                      <span className="text-xs text-slate-500">
-                        Loaded from profile ({selectedSkills.length} selected)
-                      </span>
-                    </div>
-
-                    {/* Selected Tags */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {selectedSkills.map((skill) => (
-                        <span
-                          key={skill}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200/80 text-xs font-semibold"
-                        >
-                          {skill}
-                          <button
-                            type="button"
-                            onClick={() => removeSkill(skill)}
-                            className="hover:text-indigo-900 focus:outline-hidden"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Add Custom Skill Form */}
-                    <form onSubmit={addCustomSkill} className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Add another skill (e.g. Next.js, System Design, SQL)..."
-                        value={customSkillInput}
-                        onChange={(e) => setCustomSkillInput(e.target.value)}
-                        className="flex-1 px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                      />
-                      <Button type="submit" size="sm" variant="secondary" icon={Plus}>
-                        Add
-                      </Button>
-                    </form>
+                    <SkillSelector
+                      selectedSkills={selectedSkills}
+                      onChange={setSelectedSkills}
+                      maxSkills={12}
+                      label="Technical Skills in Focus"
+                      helperText="Focus technical interview questions on verified catalogue competencies"
+                      placeholder="Search catalogue to add focus skills (e.g. React, Python, System Design)..."
+                    />
                   </div>
                 ) : (
                   /* HR Interview Info Callout (No skills asked) */

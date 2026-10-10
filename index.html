@@ -6,10 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SIPS — Skill Intelligence Placement System</title>
     <meta name="description" content="AI-Powered Career Intelligence Platform reducing Data Blindness in campus placements." />
-    <!-- Google Fonts for Modern SaaS UI -->
+    <!-- Performance Optimizations -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://sips-flash-backend.onrender.com">
+    <link rel="preconnect" href="https://sips-flash-backend.onrender.com" crossorigin>
+    <link rel="dns-prefetch" href="https://api.github.com">
+    <link rel="preconnect" href="https://api.github.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Preload critical vendor chunks (hashes updated at build time) -->
+    <link rel="preload" as="script" href="/assets/vendor-react-[hash].js" id="preload-vendor-react">
+    <link rel="preload" as="script" href="/assets/vendor-charts-[hash].js" id="preload-vendor-charts">
+    <link rel="prefetch" href="/assets/vendor-icons-[hash].js" id="prefetch-vendor-icons">
+    <link rel="prefetch" href="/assets/vendor-monaco-[hash].js" id="prefetch-vendor-monaco">
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased font-sans">
     <div id="root"></div>

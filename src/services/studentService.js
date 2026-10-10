@@ -295,6 +295,21 @@ export const studentService = {
   },
 
   /**
+   * Fetch predefined skill catalogue from backend
+   */
+  async getSkillCatalogue(category, search) {
+    try {
+      const params = {};
+      if (category && category !== 'All Categories') params.category = category;
+      if (search) params.search = search;
+      return await api.get('/api/student/skills/catalogue', { params });
+    } catch (err) {
+      console.warn('Backend skill catalogue fetch failed:', err?.message || err);
+      return null;
+    }
+  },
+
+  /**
    * Delete uploaded resume from backend
    */
   async deleteResume() {

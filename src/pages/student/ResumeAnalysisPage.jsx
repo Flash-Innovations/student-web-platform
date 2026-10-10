@@ -22,6 +22,7 @@ import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { useNotifications } from "../../context/NotificationContext";
+import { SkillSelector } from "../../components/common/SkillSelector";
 
 export function ResumeAnalysisPage() {
   const { showSuccess, showError, showWarning } = useNotifications();
@@ -406,59 +407,15 @@ export function ResumeAnalysisPage() {
             We found these skills in your resume. Please review them before adding them to your SIPS profile.
           </p>
 
-          <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Detected Skills ({detectedSkillsList.length})
-            </label>
-            <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 min-h-[60px] items-center">
-              {detectedSkillsList.length === 0 ? (
-                <span className="text-xs text-slate-400 italic">No skills selected. You can add skills below or confirm to proceed.</span>
-              ) : (
-                detectedSkillsList.map((skill, index) => (
-                  <span
-                    key={`${skill}-${index}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-xs font-medium"
-                  >
-                    {skill}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveReviewSkill(skill)}
-                      className="text-indigo-400 hover:text-indigo-700 rounded-full focus:outline-none"
-                      title="Remove skill"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Add Skill row */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={reviewNewSkill}
-              onChange={(e) => setReviewNewSkill(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAddReviewSkill();
-                }
-              }}
-              placeholder="Add missing skill (e.g. Docker, Python)..."
-              className="flex-1 text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          <div className="space-y-3">
+            <SkillSelector
+              selectedSkills={detectedSkillsList}
+              onChange={setDetectedSkillsList}
+              maxSkills={50}
+              placeholder="Search catalogue to add skills found in resume..."
+              label="Detected & Verified Skills"
+              helperText="Review and modify skills from the predefined catalogue before saving to your profile."
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddReviewSkill}
-              className="shrink-0 text-xs"
-            >
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Add Skill
-            </Button>
           </div>
 
           {/* Modal Actions */}

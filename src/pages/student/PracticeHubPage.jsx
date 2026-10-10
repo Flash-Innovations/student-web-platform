@@ -262,7 +262,7 @@ export function PracticeHubPage() {
   }, []);
 
   const handleStartAttempt = async () => {
-    if (!selectedCategory) return;
+    if (!selectedCategory || startingAttempt) return;
     setStartingAttempt(true);
     setStartError(null);
 
