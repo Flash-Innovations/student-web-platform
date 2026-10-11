@@ -33,6 +33,7 @@ import { CodeEditor } from "../../components/common/CodeEditor";
 import { practiceService } from "../../services/practiceService";
 import { practiceApi } from "../../services/practiceApi";
 import { WorkspaceSkeleton } from "../../components/common/LoadingSkeleton";
+import { ProblemStatement } from "../../components/common/ProblemStatement";
 import { cn } from "../../utils/cn";
 
 const STARTER_TEMPLATES = {
@@ -702,9 +703,7 @@ export function StudentAssessmentWorkspacePage() {
                   <h2 className="text-lg font-extrabold text-slate-900 mb-2">
                     {currentQ.title}
                   </h2>
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                    {currentQ.statement}
-                  </p>
+                  <ProblemStatement statement={currentQ.statement} />
                 </div>
               </Card>
 

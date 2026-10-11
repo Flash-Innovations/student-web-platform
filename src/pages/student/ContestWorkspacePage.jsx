@@ -32,6 +32,7 @@ import { Modal } from "../../components/common/Modal";
 import { CodeEditor } from "../../components/common/CodeEditor";
 import { practiceService } from "../../services/practiceService";
 import { WorkspaceSkeleton } from "../../components/common/LoadingSkeleton";
+import { ProblemStatement } from "../../components/common/ProblemStatement";
 import { cn } from "../../utils/cn";
 
 const STARTER_TEMPLATES = {
@@ -816,9 +817,7 @@ export function ContestWorkspacePage() {
                   <h2 className="text-base font-bold text-slate-900">
                     {currentQuestionVersion?.title || "Coding Challenge"}
                   </h2>
-                  <div className="text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
-                    {currentQuestionVersion?.statement || "No statement provided."}
-                  </div>
+                  <ProblemStatement statement={currentQuestionVersion?.statement || "No statement provided."} />
                 </div>
 
                 {/* Constraints & Limits */}
@@ -1237,9 +1236,7 @@ export function ContestWorkspacePage() {
                     {currentQuestionVersion.title}
                   </h2>
                 )}
-                <div className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap font-normal">
-                  {currentQuestionVersion?.statement || "No question statement provided."}
-                </div>
+                <ProblemStatement statement={currentQuestionVersion?.statement || "No question statement provided."} />
               </div>
 
               {/* MCQ OPTIONS / TRUE_FALSE / NUMERICAL */}
