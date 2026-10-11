@@ -57,7 +57,8 @@ export function ContestListPage() {
   };
 
   useEffect(() => {
-    fetchContests();
+    // Revalidate on mount so newly published contests appear immediately
+    fetchContests({ forceRefresh: true });
   }, []);
 
   const getContestTimingState = (contest) => {
@@ -66,7 +67,7 @@ export function ContestListPage() {
     const endMs = new Date(contest.endAt).getTime();
 
     if (contest.status === "CANCELLED") return "CANCELLED";
-    if (now < startMs) return "UPCOMING";
+    if (contest.status === "SCHEDULED" || now < startMs) return "UPCOMING";
     if (now >= startMs && now < endMs) return "LIVE";
     return "ENDED";
   };
