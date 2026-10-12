@@ -1,81 +1,38 @@
 import { practiceApi } from './practiceApi';
 
 /**
- * Practice Platform Hybrid In-Memory & SessionStorage SWR Cache Store
- * Eliminates 1-2 second roundtrips, blank loading flickers on navigation,
- * and enables instant 0ms paints on browser reload.
+ * Practice Platform In-Memory SWR Cache Store
+ * Eliminates 1-2 second roundtrips and blank loading flickers on navigation.
  */
 const cacheStore = new Map();
 const inFlightRequests = new Map();
-const DEFAULT_TTL = 10 * 60 * 1000; // 10 minutes cache freshness
-const SESSION_CACHE_PREFIX = 'sips_swr_';
+const DEFAULT_TTL = 3 * 60 * 1000; // 3 minutes
 
 function getCached(key, maxAge = DEFAULT_TTL) {
-  // 1. Check in-memory store
   const entry = cacheStore.get(key);
-  if (entry) {
-    const isExpired = Date.now() - entry.timestamp > maxAge;
-    if (!isExpired) return entry.data;
-  }
-
-  // 2. Fallback to sessionStorage for instant 0ms restoration on reload
-  try {
-    const raw = typeof window !== 'undefined' ? window.sessionStorage.getItem(`${SESSION_CACHE_PREFIX}${key}`) : null;
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed.timestamp === 'number') {
-        const isExpired = Date.now() - parsed.timestamp > maxAge;
-        if (!isExpired) {
-          cacheStore.set(key, parsed);
-          return parsed.data;
-        }
-      }
-    }
-  } catch {}
-
-  return null;
+  if (!entry) return null;
+  const isExpired = Date.now() - entry.timestamp > maxAge;
+  if (isExpired) return null;
+  return entry.data;
 }
 
 function setCached(key, data) {
-  const payload = {
+  cacheStore.set(key, {
     data,
     timestamp: Date.now()
-  };
-  cacheStore.set(key, payload);
-  try {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(`${SESSION_CACHE_PREFIX}${key}`, JSON.stringify(payload));
-    }
-  } catch {}
+  });
 }
 
 function invalidateCache(pattern) {
   if (!pattern) {
     cacheStore.clear();
-    try {
-      if (typeof window !== 'undefined') {
-        Object.keys(window.sessionStorage)
-          .filter((k) => k.startsWith(SESSION_CACHE_PREFIX))
-          .forEach((k) => window.sessionStorage.removeItem(k));
-      }
-    } catch {}
     return;
   }
   for (const key of cacheStore.keys()) {
     if (typeof pattern === 'string' && key.includes(pattern)) {
       cacheStore.delete(key);
-      try {
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.removeItem(`${SESSION_CACHE_PREFIX}${key}`);
-        }
-      } catch {}
     } else if (pattern instanceof RegExp && pattern.test(key)) {
       cacheStore.delete(key);
-      try {
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.removeItem(`${SESSION_CACHE_PREFIX}${key}`);
-        }
-      } catch {}
     }
   }
 }
@@ -144,15 +101,6 @@ export const practiceService = {
 
   getCachedPracticeStreak() {
     return getCached('practice_streak');
-  },
-
-  getCachedStudentCurriculum(params = {}) {
-    const query = new URLSearchParams();
-    if (params.department) query.set('department', params.department);
-    if (params.branch) query.set('branch', params.branch);
-    if (params.course) query.set('course', params.course);
-    const qs = query.toString();
-    return getCached(`student_curriculum_${qs || 'default'}`);
   },
 
   invalidateSolveStatus() {
@@ -299,11 +247,9 @@ export const practiceService = {
    * Start a self-paced practice session
    * @param {object} params - { type, category, questionCount, questionId }
    */
-  async createPracticeAttempt({ type, category, subjectId, questionCount = 10, questionId, difficulty } = {}) {
+  async createPracticeAttempt({ type, category, questionCount = 10, questionId } = {}) {
     const payload = { type, category, questionCount };
-    if (subjectId) payload.subjectId = subjectId;
     if (questionId) payload.questionId = questionId;
-    if (difficulty) payload.difficulty = difficulty;
     const res = await practiceApi.post('/api/practice/attempts', payload);
     return res?.data || res;
   },
@@ -510,6 +456,10 @@ export const practiceService = {
    * =========================================================================
    */
 
+  async getQuestions(params = {}) {
+    return this.getAdminQuestions(params);
+  },
+
   /**
    * Retrieve paginated questions list for admin portal with multi-criteria filters
    */
@@ -654,6 +604,16 @@ export const practiceService = {
   },
 
   /**
+   * Delete or archive assessment (deletes if 0 attempts, archives if attempts > 0)
+   */
+  async deleteAssessment(assessmentId) {
+    const res = await practiceApi.delete(`/api/admin/assessments/${assessmentId}`);
+    invalidateCache('admin_assessments');
+    invalidateCache('available_assessments');
+    return res?.data || res;
+  },
+
+  /**
    * Associate SIPS Placement Drive with Assessment
    */
   async associateDriveToAssessment(assessmentId, sipsDriveId) {
@@ -790,17 +750,20 @@ export const practiceService = {
 
   /**
    * =========================================================================
-   * DYNAMIC CURRICULUM & SUBJECTS APIs
+   * CURRICULUM & SUBJECT MANAGEMENT APIs
    * =========================================================================
    */
 
   /**
-   * Get all active subjects
+   * List all subjects with optional filters (type, department, scope, search)
    */
   async getSubjects(params = {}) {
     const query = new URLSearchParams();
     if (params.type && params.type !== 'ALL') query.set('type', params.type);
+    if (params.departmentId && params.departmentId !== 'ALL') query.set('departmentId', params.departmentId);
     if (params.search) query.set('search', params.search);
+    if (params.scope && params.scope !== 'ALL') query.set('scope', params.scope);
+    if (params.status && params.status !== 'ALL') query.set('status', params.status);
 
     const qs = query.toString();
     const res = await practiceApi.get(`/api/subjects${qs ? `?${qs}` : ''}`);
@@ -808,25 +771,169 @@ export const practiceService = {
   },
 
   /**
-   * Get personalized curriculum tailored to student's program / department (Cached SWR)
+   * Get single subject by ID
    */
-  async getStudentCurriculum(params = {}, options = {}) {
+  async getSubjectById(subjectId) {
+    const res = await practiceApi.get(`/api/subjects/${subjectId}`);
+    return res?.data || res;
+  },
+
+  /**
+   * Create a new subject
+   */
+  async createSubject(data) {
+    const res = await practiceApi.post('/api/admin/subjects', data);
+    invalidateCache('subjects');
+    return res?.data || res;
+  },
+
+  /**
+   * Update subject
+   */
+  async updateSubject(subjectId, data) {
+    const res = await practiceApi.put(`/api/admin/subjects/${subjectId}`, data);
+    invalidateCache('subjects');
+    return res?.data || res;
+  },
+
+  /**
+   * Delete subject
+   */
+  async deleteSubject(subjectId) {
+    const res = await practiceApi.delete(`/api/admin/subjects/${subjectId}`);
+    invalidateCache('subjects');
+    return res?.data || res;
+  },
+
+  /**
+   * Get Master Global Subject & Question Catalog available for college adoption
+   */
+  async getGlobalCatalog(params = {}) {
     const query = new URLSearchParams();
+    if (params.type && params.type !== 'ALL') query.set('type', params.type);
+    if (params.search) query.set('search', params.search);
+
+    const qs = query.toString();
+    const res = await practiceApi.get(`/api/subjects/global-catalog${qs ? `?${qs}` : ''}`);
+    return res?.data || res;
+  },
+
+  /**
+   * College adopts a global subject with department allocations
+   */
+  async adoptGlobalSubject(data) {
+    const res = await practiceApi.post('/api/admin/subjects/adopt', data);
+    invalidateCache('subjects');
+    return res?.data || res;
+  },
+
+  /**
+   * Assign subject to departments (College Level)
+   */
+  async assignDepartmentSubjects(subjectId, data) {
+    const res = await practiceApi.put(`/api/admin/subjects/${subjectId}/assign-departments`, data);
+    invalidateCache('subjects');
+    return res?.data || res;
+  },
+
+  /**
+   * Assign subject to branches (Department Level)
+   */
+  async assignBranchSubjects(subjectId, data) {
+    const res = await practiceApi.put(`/api/department/subjects/${subjectId}/assign-branches`, data);
+    invalidateCache('subjects');
+    return res?.data || res;
+  },
+
+  /**
+   * Get personalized curriculum for student
+   */
+  async getStudentCurriculum(params = {}) {
+    const query = new URLSearchParams();
+    if (params.departmentId) query.set('departmentId', params.departmentId);
+    if (params.branchId) query.set('branchId', params.branchId);
     if (params.department) query.set('department', params.department);
     if (params.branch) query.set('branch', params.branch);
     if (params.course) query.set('course', params.course);
+    if (params.collegeId) query.set('collegeId', params.collegeId);
 
     const qs = query.toString();
-    const cacheKey = `student_curriculum_${qs || 'default'}`;
+    const res = await practiceApi.get(`/api/practice/student/curriculum${qs ? `?${qs}` : ''}`);
+    return res?.data || res;
+  },
 
-    return cachedFetch(
-      cacheKey,
-      async () => {
-        const res = await practiceApi.get(`/api/practice/student/curriculum${qs ? `?${qs}` : ''}`);
-        return res?.data || res;
-      },
-      { forceRefresh: options.forceRefresh, ttl: options.ttl || DEFAULT_TTL }
-    );
+  // ==========================================
+  // CONTEST MANAGEMENT & ASSEMBLY (Admin Studio)
+  // ==========================================
+  async getAdminContests(params = {}) {
+    const query = new URLSearchParams();
+    if (params.status && params.status !== 'ALL') query.set('status', params.status);
+    if (params.search) query.set('search', params.search);
+    if (params.departmentId) query.set('departmentId', params.departmentId);
+    if (params.branchId) query.set('branchId', params.branchId);
+    if (params.sipsDriveId) query.set('sipsDriveId', params.sipsDriveId);
+    if (params.limit) query.set('limit', params.limit);
+    if (params.offset) query.set('offset', params.offset);
+
+    const qs = query.toString();
+    const res = await practiceApi.get(`/api/contests${qs ? `?${qs}` : ''}`);
+    return res?.data || res;
+  },
+
+  async getContestById(contestId) {
+    if (!contestId) throw new Error('Contest ID is required');
+    const res = await practiceApi.get(`/api/contests/${contestId}`);
+    return res?.data || res;
+  },
+
+  async createContest(data) {
+    const res = await practiceApi.post('/api/contests', data);
+    invalidateCache('contests');
+    return res?.data || res;
+  },
+
+  async addContestQuestion(contestId, data) {
+    const res = await practiceApi.post(`/api/contests/${contestId}/questions`, data);
+    return res?.data || res;
+  },
+
+  async removeContestQuestion(contestId, contestQuestionId) {
+    const res = await practiceApi.delete(`/api/contests/${contestId}/questions/${contestQuestionId}`);
+    return res?.data || res;
+  },
+
+  async reorderContestQuestions(contestId, data) {
+    const res = await practiceApi.post(`/api/contests/${contestId}/questions/reorder`, data);
+    return res?.data || res;
+  },
+
+  async publishContest(contestId) {
+    const res = await practiceApi.post(`/api/contests/${contestId}/publish`);
+    invalidateCache('contests');
+    return res?.data || res;
+  },
+
+  async cancelContest(contestId) {
+    const res = await practiceApi.post(`/api/contests/${contestId}/cancel`);
+    invalidateCache('contests');
+    return res?.data || res;
+  },
+
+  async deleteContest(contestId) {
+    if (!contestId) throw new Error('Contest ID is required');
+    const res = await practiceApi.delete(`/api/contests/${contestId}`);
+    invalidateCache('contests');
+    return res?.data || res;
+  },
+
+  async getAdminContestLeaderboard(contestId, params = {}) {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', params.page);
+    if (params.limit) query.set('limit', params.limit);
+
+    const qs = query.toString();
+    const res = await practiceApi.get(`/api/contests/${contestId}/admin-leaderboard${qs ? `?${qs}` : ''}`);
+    return res?.data || res;
   }
 };
 
