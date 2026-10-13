@@ -166,14 +166,20 @@ export function PracticeHubPage() {
   const studentBranch = user?.branch || user?.department || "";
   const studentCourse = user?.course || "";
 
-  // Synchronous SWR cache initialization for 0ms instant paint
-  const cachedCurriculum = practiceService.getCachedStudentCurriculum({
-    department: studentBranch,
-    branch: studentBranch,
-    course: studentCourse
-  });
-  const cachedProgress = practiceService.getCachedPracticeProgress();
-  const cachedStreak = practiceService.getCachedPracticeStreak();
+  // Synchronous SWR cache initialization for 0ms instant paint (safely guarded)
+  const cachedCurriculum = typeof practiceService?.getCachedStudentCurriculum === "function"
+    ? practiceService.getCachedStudentCurriculum({
+        department: studentBranch,
+        branch: studentBranch,
+        course: studentCourse
+      })
+    : null;
+  const cachedProgress = typeof practiceService?.getCachedPracticeProgress === "function"
+    ? practiceService.getCachedPracticeProgress()
+    : null;
+  const cachedStreak = typeof practiceService?.getCachedPracticeStreak === "function"
+    ? practiceService.getCachedPracticeStreak()
+    : null;
 
   const [activeTab, setActiveTab] = useState("all"); // "all" | "aptitude" | "technical" | "coding"
   const [loading, setLoading] = useState(!cachedCurriculum && !cachedProgress);
@@ -528,7 +534,7 @@ export function PracticeHubPage() {
           <Binary className="w-4 h-4" />
           Technical Core
         </button>
-        {curriculumSubjects.some((s) => s.type === "NON_TECHNICAL" || s.type === "GENERAL") && (
+        {Array.isArray(curriculumSubjects) && curriculumSubjects.some((s) => s.type === "NON_TECHNICAL" || s.type === "GENERAL") && (
           <button
             onClick={() => setActiveTab("non_technical")}
             className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
@@ -571,7 +577,7 @@ export function PracticeHubPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {curriculumSubjects.filter((s) => s.type === "APTITUDE").map((sub) => {
+            {(Array.isArray(curriculumSubjects) ? curriculumSubjects : []).filter((s) => s.type === "APTITUDE").map((sub) => {
               const IconComponent = ICON_MAP[sub.icon] || Calculator;
               const colorClass = COLOR_MAP[sub.color] || COLOR_MAP.indigo;
               const topics = Array.isArray(sub.topics) ? sub.topics : [];
@@ -611,7 +617,7 @@ export function PracticeHubPage() {
                       <div className="flex flex-wrap gap-1 mb-4">
                         {topics.slice(0, 4).map((t, idx) => (
                           <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
-                            {typeof t === "string" ? t : t.name}
+                            {typeof t === "string" ? t : t?.name || t?.topic || ""}
                           </span>
                         ))}
                       </div>
@@ -645,7 +651,7 @@ export function PracticeHubPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {curriculumSubjects.filter((s) => s.type === "TECHNICAL").map((sub) => {
+            {(Array.isArray(curriculumSubjects) ? curriculumSubjects : []).filter((s) => s.type === "TECHNICAL").map((sub) => {
               const IconComponent = ICON_MAP[sub.icon] || Binary;
               const colorClass = COLOR_MAP[sub.color] || COLOR_MAP.indigo;
               const topics = Array.isArray(sub.topics) ? sub.topics : [];
@@ -685,7 +691,7 @@ export function PracticeHubPage() {
                       <div className="flex flex-wrap gap-1 mb-4">
                         {topics.slice(0, 4).map((t, idx) => (
                           <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
-                            {typeof t === "string" ? t : t.name}
+                            {typeof t === "string" ? t : t?.name || t?.topic || ""}
                           </span>
                         ))}
                       </div>
@@ -719,7 +725,7 @@ export function PracticeHubPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {curriculumSubjects.filter((s) => s.type === "NON_TECHNICAL" || s.type === "GENERAL").map((sub) => {
+            {(Array.isArray(curriculumSubjects) ? curriculumSubjects : []).filter((s) => s.type === "NON_TECHNICAL" || s.type === "GENERAL").map((sub) => {
               const IconComponent = ICON_MAP[sub.icon] || Briefcase;
               const colorClass = COLOR_MAP[sub.color] || COLOR_MAP.emerald;
               const topics = Array.isArray(sub.topics) ? sub.topics : [];
@@ -759,7 +765,7 @@ export function PracticeHubPage() {
                       <div className="flex flex-wrap gap-1 mb-4">
                         {topics.slice(0, 4).map((t, idx) => (
                           <span key={idx} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
-                            {typeof t === "string" ? t : t.name}
+                            {typeof t === "string" ? t : t?.name || t?.topic || ""}
                           </span>
                         ))}
                       </div>
@@ -920,14 +926,14 @@ export function PracticeHubPage() {
               </div>
             ))}
           </div>
-        ) : !progress?.recentActivity || progress.recentActivity.length === 0 ? (
+        ) : !Array.isArray(progress?.recentActivity) || progress.recentActivity.length === 0 ? (
           <div className="py-6 text-center text-slate-400 space-y-1">
             <p className="text-xs text-slate-500">No practice attempts recorded yet. Start practicing with the modules above!</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
             {progress.recentActivity.map((item) => {
-              const isSubmitted = item.status === "SUBMITTED";
+              const isSubmitted = item.status === "SUBMITTED" || Boolean(item.submittedAt);
               const isCoding = item.type === "CODING" || item.category === "CODING";
               const dateStr = item.submittedAt || item.startedAt || item.createdAt;
               const formattedDate = dateStr

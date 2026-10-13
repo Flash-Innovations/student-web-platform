@@ -103,6 +103,17 @@ export const practiceService = {
     return getCached('practice_streak');
   },
 
+  getCachedStudentCurriculum(params = {}) {
+    const query = new URLSearchParams();
+    if (params.departmentId) query.set('departmentId', params.departmentId);
+    if (params.branchId) query.set('branchId', params.branchId);
+    if (params.department) query.set('department', params.department);
+    if (params.branch) query.set('branch', params.branch);
+    if (params.course) query.set('course', params.course);
+    if (params.collegeId) query.set('collegeId', params.collegeId);
+    return getCached(`student_curriculum_${query.toString()}`);
+  },
+
   invalidateSolveStatus() {
     invalidateCache('coding_solve_status');
     invalidateCache('practice_progress');
@@ -852,7 +863,7 @@ export const practiceService = {
   /**
    * Get personalized curriculum for student
    */
-  async getStudentCurriculum(params = {}) {
+  async getStudentCurriculum(params = {}, options = {}) {
     const query = new URLSearchParams();
     if (params.departmentId) query.set('departmentId', params.departmentId);
     if (params.branchId) query.set('branchId', params.branchId);
@@ -862,8 +873,14 @@ export const practiceService = {
     if (params.collegeId) query.set('collegeId', params.collegeId);
 
     const qs = query.toString();
-    const res = await practiceApi.get(`/api/practice/student/curriculum${qs ? `?${qs}` : ''}`);
-    return res?.data || res;
+    return cachedFetch(
+      `student_curriculum_${qs}`,
+      async () => {
+        const res = await practiceApi.get(`/api/practice/student/curriculum${qs ? `?${qs}` : ''}`);
+        return res?.data || res;
+      },
+      options
+    );
   },
 
   // ==========================================
