@@ -124,10 +124,11 @@ function parseProblemSections(fullText) {
 /**
  * Component to format example blocks (Input/Output sample pairs)
  */
-function ExampleSection({ examplesText }) {
+function ExampleSection({ examplesText, disableCopy = false }) {
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {
+    if (disableCopy) return;
     navigator.clipboard.writeText(examplesText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -140,15 +141,17 @@ function ExampleSection({ examplesText }) {
           <Terminal className="w-3.5 h-3.5 text-indigo-600" />
           Sample Input & Output
         </h5>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 px-2 py-0.5 rounded hover:bg-slate-200/60 transition-colors"
-          title="Copy sample data"
-        >
-          {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-          <span>{copied ? "Copied" : "Copy"}</span>
-        </button>
+        {!disableCopy && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 px-2 py-0.5 rounded hover:bg-slate-200/60 transition-colors"
+            title="Copy sample data"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? "Copied" : "Copy"}</span>
+          </button>
+        )}
       </div>
       <pre className="p-3 bg-slate-900 text-slate-100 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre leading-relaxed border border-slate-800">
         {examplesText}
@@ -160,7 +163,7 @@ function ExampleSection({ examplesText }) {
 /**
  * Universal Problem Statement Viewer with Math / LaTeX formatting
  */
-export function ProblemStatement({ statement, className = "" }) {
+export function ProblemStatement({ statement, className = "", disableCopy = false }) {
   const parsed = useMemo(() => parseProblemSections(statement), [statement]);
 
   const renderParagraphs = (rawText) => {
@@ -218,7 +221,7 @@ export function ProblemStatement({ statement, className = "" }) {
 
       {/* 4. Examples / Samples */}
       {parsed.examples && (
-        <ExampleSection examplesText={parsed.examples} />
+        <ExampleSection examplesText={parsed.examples} disableCopy={disableCopy} />
       )}
 
       {/* 5. Notes / Explanations */}

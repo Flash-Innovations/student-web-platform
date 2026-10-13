@@ -34,6 +34,14 @@ import { practiceService } from "../../services/practiceService";
 import { practiceApi } from "../../services/practiceApi";
 import { WorkspaceSkeleton } from "../../components/common/LoadingSkeleton";
 import { ProblemStatement } from "../../components/common/ProblemStatement";
+import { useNotifications } from "../../context/NotificationContext";
+import { useSafeBrowser, parseProctoringConfig } from "../../hooks/useSafeBrowser";
+import {
+  SafeBrowserLaunchModal,
+  SafeBrowserWarningModal,
+  SafeBrowserTerminatedModal,
+  SafeBrowserStatusPill
+} from "../../components/common/SafeBrowserGate";
 import { cn } from "../../utils/cn";
 
 const STARTER_TEMPLATES = {
@@ -118,6 +126,31 @@ import {
 export function StudentAssessmentWorkspacePage() {
   const { assessmentId, attemptId } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useNotifications();
+
+  // Proctoring & Safe Browser State
+  const [maxViolationsAllowed, setMaxViolationsAllowed] = useState(3);
+
+  // Safe Browser Hook
+  const safeBrowser = useSafeBrowser({
+    enabled: true,
+    maxViolations: maxViolationsAllowed,
+    blockClipboard: true, // Copy pasting strictly disallowed in assessment
+    toastNotifier: (msg, type) => {
+      if (addToast) addToast(msg, type);
+    },
+    onTerminated: async () => {
+      try {
+        await practiceService.submitAssessment(assessmentId, attemptId);
+      } catch (err) {
+        console.warn("Auto-submit on max violations notice:", err);
+      } finally {
+        setTimeout(() => {
+          navigate(`/student/assessments/${assessmentId}/result/${attemptId}`, { replace: true });
+        }, 2200);
+      }
+    }
+  });
 
   // Attempt & Questions state
   const [attempt, setAttempt] = useState(null);
@@ -177,6 +210,14 @@ export function StudentAssessmentWorkspacePage() {
 
       setAttempt(attemptData);
       setQuestions(questionsData);
+
+      // Parse creator-configured safe browser proctoring rules
+      const proctoring = parseProctoringConfig(
+        attemptData.assessment?.description || attemptData.description || ""
+      );
+      if (proctoring.maxViolations) {
+        setMaxViolationsAllowed(proctoring.maxViolations);
+      }
 
       // Initialize responses & coding states
       const initialResponses = {};
@@ -561,6 +602,15 @@ export function StudentAssessmentWorkspacePage() {
 
         {/* Timer & Submit Controls */}
         <div className="flex items-center gap-4">
+          {/* Safe Browser Status Pill */}
+          <SafeBrowserStatusPill
+            isArmed={safeBrowser.isArmed}
+            isFullscreen={safeBrowser.isFullscreenActive}
+            violationCount={safeBrowser.violationCount}
+            maxViolations={safeBrowser.maxViolations}
+            onReenterFullscreen={safeBrowser.launchSafeBrowser}
+          />
+
           {/* Autosave badge */}
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400">
             {savingStatus === "SAVING" ? (
@@ -703,7 +753,7 @@ export function StudentAssessmentWorkspacePage() {
                   <h2 className="text-lg font-extrabold text-slate-900 mb-2">
                     {currentQ.title}
                   </h2>
-                  <ProblemStatement statement={currentQ.statement} />
+                  <ProblemStatement statement={currentQ.statement} disableCopy={true} />
                 </div>
               </Card>
 
@@ -771,9 +821,11 @@ export function StudentAssessmentWorkspacePage() {
                     <CodeEditor
                       value={currentCodingState.sourceCode || ""}
                       onChange={handleCodeChange}
-                      language={currentCodingLang}
+                      language={currentCodingState.language || "python"}
                       height="320px"
-                      readOnly={isExpired || submitting}
+                      readOnly={isTimedOut || submitting}
+                      disableCopyPaste={true}
+                      onClipboardBlocked={(msg) => addToast && addToast(msg, "warning")}
                     />
                   </div>
 
@@ -986,6 +1038,28 @@ export function StudentAssessmentWorkspacePage() {
           </div>
         </div>
       </Modal>
+
+      {/* 4. Safe Browser Launch Gate Modal */}
+      <SafeBrowserLaunchModal
+        isOpen={!safeBrowser.isArmed && !loading && !error}
+        title="Proctored Campus Assessment"
+        maxViolations={safeBrowser.maxViolations}
+        blockClipboard={true}
+        onLaunch={safeBrowser.launchSafeBrowser}
+      />
+
+      {/* 5. Safe Browser Warning Strike Modal */}
+      <SafeBrowserWarningModal
+        warning={safeBrowser.activeWarning}
+        onDismiss={safeBrowser.dismissWarning}
+      />
+
+      {/* 6. Safe Browser Disqualification Modal */}
+      <SafeBrowserTerminatedModal
+        isOpen={safeBrowser.isTerminated}
+        totalStrikes={safeBrowser.violationCount}
+        violations={safeBrowser.violations}
+      />
     </div>
   );
 }

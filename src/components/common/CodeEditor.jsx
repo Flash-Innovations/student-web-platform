@@ -24,6 +24,8 @@ export function CodeEditor({
   height = "100%",
   minHeight = "420px",
   readOnly = false,
+  disableCopyPaste = false,
+  onClipboardBlocked = null,
   options = {},
   onMount
 }) {
@@ -64,12 +66,32 @@ export function CodeEditor({
 
     monaco.editor.setTheme("sips-dark");
 
+    // Intercept copy/paste/cut inside Monaco if strict exam lockdown is enabled
+    if (disableCopyPaste) {
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
+        if (typeof onClipboardBlocked === "function") {
+          onClipboardBlocked("Pasting code is disabled in this exam.");
+        }
+      });
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyC, () => {
+        if (typeof onClipboardBlocked === "function") {
+          onClipboardBlocked("Copying code is disabled in this exam.");
+        }
+      });
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyX, () => {
+        if (typeof onClipboardBlocked === "function") {
+          onClipboardBlocked("Cutting code is disabled in this exam.");
+        }
+      });
+    }
+
     if (onMount) {
       onMount(editor, monaco);
     }
   };
 
   const defaultOptions = {
+    contextmenu: !disableCopyPaste,
     selectOnLineNumbers: true,
     roundedSelection: true,
     readOnly,
