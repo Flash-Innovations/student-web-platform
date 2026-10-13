@@ -26,9 +26,8 @@ export function DevQuestionListPage() {
   const [questions, setQuestions] = useState(() => practiceService.getCachedDevQuestions() || devQuestionsFallback);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Filters
+  // Filters (Language-Independent: topic, difficulty, search)
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStack, setSelectedStack] = useState("ALL");
   const [selectedDifficulty, setSelectedDifficulty] = useState("ALL");
   const [selectedTopic, setSelectedTopic] = useState("ALL");
 
@@ -63,24 +62,14 @@ export function DevQuestionListPage() {
 
   const stats = useMemo(() => {
     const total = questions.length;
-    const nodeCount = questions.filter((q) => !q.stack || q.stack.toLowerCase().includes("js") || q.stack.toLowerCase().includes("node")).length;
-    const springCount = questions.filter((q) => (q.stack || "").toLowerCase().includes("spring") || (q.stack || "").toLowerCase().includes("java")).length;
-    const fastApiCount = questions.filter((q) => (q.stack || "").toLowerCase().includes("fastapi") || (q.stack || "").toLowerCase().includes("python")).length;
     const easy = questions.filter((q) => (q.difficulty || "").toLowerCase() === "easy").length;
     const medium = questions.filter((q) => (q.difficulty || "").toLowerCase() === "medium").length;
     const hard = questions.filter((q) => (q.difficulty || "").toLowerCase() === "hard").length;
-    return { total, nodeCount, springCount, fastApiCount, easy, medium, hard };
+    return { total, easy, medium, hard };
   }, [questions]);
 
   const filteredQuestions = useMemo(() => {
     return questions.filter((q) => {
-      const stack = (q.stack || "").toLowerCase();
-      const matchesStack =
-        selectedStack === "ALL" ||
-        (selectedStack === "NODE" && (stack.includes("javascript") || stack.includes("node") || !q.stack)) ||
-        (selectedStack === "SPRINGBOOT" && (stack.includes("spring") || stack.includes("java"))) ||
-        (selectedStack === "FASTAPI" && (stack.includes("fastapi") || stack.includes("python")));
-
       const matchesSearch =
         !searchQuery.trim() ||
         q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -95,29 +84,9 @@ export function DevQuestionListPage() {
       const matchesTopic =
         selectedTopic === "ALL" || q.topic === selectedTopic;
 
-      return matchesStack && matchesSearch && matchesDiff && matchesTopic;
+      return matchesSearch && matchesDiff && matchesTopic;
     });
-  }, [questions, searchQuery, selectedStack, selectedDifficulty, selectedTopic]);
-
-  const getStackBadge = (stackStr) => {
-    const s = (stackStr || "").toLowerCase();
-    if (s.includes("spring") || s.includes("java")) {
-      return {
-        label: "Spring Boot (Java 17+)",
-        className: "bg-purple-50 text-purple-700 border-purple-200"
-      };
-    }
-    if (s.includes("fastapi") || s.includes("python")) {
-      return {
-        label: "FastAPI (Python 3.11+)",
-        className: "bg-sky-50 text-sky-700 border-sky-200"
-      };
-    }
-    return {
-      label: "Node.js (ES6+)",
-      className: "bg-emerald-50 text-emerald-700 border-emerald-200"
-    };
-  };
+  }, [questions, searchQuery, selectedDifficulty, selectedTopic]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -137,7 +106,7 @@ export function DevQuestionListPage() {
               <Terminal className="w-4 h-4" />
             </span>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Developer Engineering Tasks Bank
+              Language-Independent Dev Tasks Bank
             </span>
           </div>
         </div>
@@ -158,82 +127,39 @@ export function DevQuestionListPage() {
         <div className="relative z-10 max-w-3xl space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
-            Full-Stack & Backend Systems Engineering
+            Multi-Language Engineering Practice
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Dev Practices Arena
           </h1>
           <p className="text-sm text-slate-300 leading-relaxed">
-            Solve real-world engineering challenges across <strong>Node.js</strong>, <strong>Spring Boot (Java)</strong>, and <strong>FastAPI (Python)</strong>. Implement rate limiters, token filters, async worker pools, and caching tiers with automated unit assertions.
+            Solve real-world backend, API, and systems engineering problems in your preferred language: <strong>JavaScript (Node.js)</strong>, <strong>Python 3 (FastAPI)</strong>, or <strong>Java (Spring Boot)</strong>. Choose your language directly inside the code editor.
           </p>
 
           <div className="flex items-center gap-4 pt-2 flex-wrap text-xs text-slate-300">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 text-emerald-300 font-semibold">
+              <Code2 className="w-3.5 h-3.5" />
+              <span>Multi-Language: JS • Python • Java</span>
+            </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span>Node.js: <strong>{stats.nodeCount}</strong></span>
+              <span>Easy: <strong>{stats.easy}</strong></span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-400" />
-              <span>Spring Boot: <strong>{stats.springCount}</strong></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <span>Medium: <strong>{stats.medium}</strong></span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
-              <span>FastAPI: <strong>{stats.fastApiCount}</strong></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+              <span>Hard: <strong>{stats.hard}</strong></span>
             </div>
             <div className="text-slate-400 border-l border-slate-700 pl-4">
-              Total: <strong>{stats.total} Production Tasks</strong>
+              Total: <strong>{stats.total} Challenges</strong>
             </div>
           </div>
         </div>
 
         <Terminal className="absolute -right-6 -bottom-6 w-48 h-48 text-white/5 pointer-events-none" />
-      </div>
-
-      {/* Stack Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
-        <button
-          onClick={() => setSelectedStack("ALL")}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-            selectedStack === "ALL"
-              ? "bg-slate-900 text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
-          }`}
-        >
-          All Stacks ({stats.total})
-        </button>
-        <button
-          onClick={() => setSelectedStack("NODE")}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-            selectedStack === "NODE"
-              ? "bg-emerald-600 text-white shadow-xs"
-              : "text-slate-600 hover:text-emerald-700 hover:bg-emerald-50"
-          }`}
-        >
-          <Code2 className="w-3.5 h-3.5" />
-          Node.js ({stats.nodeCount})
-        </button>
-        <button
-          onClick={() => setSelectedStack("SPRINGBOOT")}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-            selectedStack === "SPRINGBOOT"
-              ? "bg-purple-600 text-white shadow-xs"
-              : "text-slate-600 hover:text-purple-700 hover:bg-purple-50"
-          }`}
-        >
-          <Cpu className="w-3.5 h-3.5" />
-          Spring Boot / Java ({stats.springCount})
-        </button>
-        <button
-          onClick={() => setSelectedStack("FASTAPI")}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-            selectedStack === "FASTAPI"
-              ? "bg-sky-600 text-white shadow-xs"
-              : "text-slate-600 hover:text-sky-700 hover:bg-sky-50"
-          }`}
-        >
-          <Terminal className="w-3.5 h-3.5" />
-          FastAPI / Python ({stats.fastApiCount})
-        </button>
       </div>
 
       {/* Search & Filter Toolbar */}
@@ -296,13 +222,12 @@ export function DevQuestionListPage() {
           <Card className="p-12 text-center border-slate-200 space-y-3">
             <Terminal className="w-10 h-10 text-slate-300 mx-auto" />
             <h3 className="text-base font-bold text-slate-700">No engineering tasks match your filter</h3>
-            <p className="text-xs text-slate-400">Try adjusting your search keywords, stack tabs, or difficulty filters.</p>
+            <p className="text-xs text-slate-400">Try adjusting your search keywords or topic filters.</p>
             <Button
               variant="outline"
               size="xs"
               onClick={() => {
                 setSearchQuery("");
-                setSelectedStack("ALL");
                 setSelectedDifficulty("ALL");
                 setSelectedTopic("ALL");
               }}
@@ -315,7 +240,6 @@ export function DevQuestionListPage() {
             {filteredQuestions.map((q, idx) => {
               const diffLower = (q.difficulty || "").toLowerCase();
               const diffVariant = diffLower === "hard" ? "danger" : diffLower === "medium" ? "warning" : "success";
-              const stackBadge = getStackBadge(q.stack);
 
               return (
                 <Card
@@ -326,8 +250,8 @@ export function DevQuestionListPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border ${stackBadge.className}`}>
-                            {stackBadge.label}
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            JS • Python • Java
                           </span>
                           <span className="text-[10px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                             {q.topic || "ENGINEERING"}
