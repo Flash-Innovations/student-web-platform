@@ -1,0 +1,808 @@
+[
+  {
+    "id": "sql-1",
+    "title": "Department Top Earners",
+    "difficulty": "Medium",
+    "category": "SQL Practice",
+    "topic": "JOINS",
+    "scenario": "A campus hiring recruiter at Razorpay wants to find employees who have the highest salary in each department.",
+    "requirements": [
+      "Join the Employee table with the Department table on departmentId.",
+      "Filter for employees whose salary equals the maximum salary in their department.",
+      "Output Department Name, Employee Name, and Salary."
+    ],
+    "tables": [
+      {
+        "name": "Department",
+        "columns": ["id", "name"],
+        "rows": [
+          [1, "IT"],
+          [2, "Sales"]
+        ]
+      },
+      {
+        "name": "Employee",
+        "columns": ["id", "name", "salary", "departmentId"],
+        "rows": [
+          [1, "Joe", 85000, 1],
+          [2, "Henry", 80000, 2],
+          [3, "Sam", 60000, 2],
+          [4, "Max", 90000, 1]
+        ]
+      }
+    ],
+    "starterQuery": "-- Find highest earner per department\nSELECT \n  d.name AS Department,\n  e.name AS Employee,\n  e.salary AS Salary\nFROM Employee e\nJOIN Department d ON e.departmentId = d.id\nWHERE ",
+    "solutionQuery": "SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary FROM Employee e JOIN Department d ON e.departmentId = d.id WHERE (e.departmentId, e.salary) IN (SELECT departmentId, MAX(salary) FROM Employee GROUP BY departmentId);",
+    "expectedOutput": {
+      "columns": ["Department", "Employee", "Salary"],
+      "rows": [
+        ["IT", "Max", 90000],
+        ["Sales", "Henry", 80000]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Group the employee table by departmentId to find the maximum salary." },
+      { "level": 2, "text": "Filter using WHERE (departmentId, salary) IN (...)." }
+    ]
+  },
+  {
+    "id": "sql-2",
+    "title": "Second Highest Salary",
+    "difficulty": "Medium",
+    "category": "SQL Practice",
+    "topic": "SUBQUERIES",
+    "scenario": "Determine the second highest distinct salary from the Employee table. If no second highest salary exists, return NULL.",
+    "requirements": [
+      "Select the maximum distinct salary that is strictly less than the overall maximum salary.",
+      "Alias the result as SecondHighestSalary."
+    ],
+    "tables": [
+      {
+        "name": "Employee",
+        "columns": ["id", "salary"],
+        "rows": [
+          [1, 100],
+          [2, 200],
+          [3, 300]
+        ]
+      }
+    ],
+    "starterQuery": "-- Return the second highest distinct salary\nSELECT \n  MAX(salary) AS SecondHighestSalary\nFROM Employee\nWHERE ",
+    "solutionQuery": "SELECT MAX(salary) AS SecondHighestSalary FROM Employee WHERE salary < (SELECT MAX(salary) FROM Employee);",
+    "expectedOutput": {
+      "columns": ["SecondHighestSalary"],
+      "rows": [
+        [200]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Find the maximum salary first using an inner subquery." },
+      { "level": 2, "text": "Select MAX(salary) with WHERE salary < (SELECT MAX(salary))." }
+    ]
+  },
+  {
+    "id": "sql-3",
+    "title": "Employees Earning More Than Their Managers",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "JOINS",
+    "scenario": "Find employees who earn more than their direct manager in an organization hierarchy.",
+    "requirements": [
+      "Perform a self-join on the Employee table where employee.managerId = manager.id.",
+      "Compare employee.salary > manager.salary.",
+      "Output the employee name aliased as Employee."
+    ],
+    "tables": [
+      {
+        "name": "Employee",
+        "columns": ["id", "name", "salary", "managerId"],
+        "rows": [
+          [1, "Joe", 70000, 3],
+          [2, "Henry", 80000, 4],
+          [3, "Sam", 60000, null],
+          [4, "Max", 90000, null]
+        ]
+      }
+    ],
+    "starterQuery": "-- Find employees earning more than their manager\nSELECT \n  e.name AS Employee\nFROM Employee e\nJOIN Employee m ON e.managerId = m.id\nWHERE ",
+    "solutionQuery": "SELECT e.name AS Employee FROM Employee e JOIN Employee m ON e.managerId = m.id WHERE e.salary > m.salary;",
+    "expectedOutput": {
+      "columns": ["Employee"],
+      "rows": [
+        ["Joe"]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Use a self-join where alias 'e' is employee and alias 'm' is manager." }
+    ]
+  },
+  {
+    "id": "sql-4",
+    "title": "Duplicate Emails",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "AGGREGATIONS",
+    "scenario": "Find all duplicate emails registered in a customer accounts table.",
+    "requirements": [
+      "Group records by email.",
+      "Filter groups having a count greater than 1 using HAVING.",
+      "Output the email column."
+    ],
+    "tables": [
+      {
+        "name": "Person",
+        "columns": ["id", "email"],
+        "rows": [
+          [1, "a@b.com"],
+          [2, "c@d.com"],
+          [3, "a@b.com"]
+        ]
+      }
+    ],
+    "starterQuery": "-- Report all duplicate emails\nSELECT email\nFROM Person\nGROUP BY email\nHAVING ",
+    "solutionQuery": "SELECT email FROM Person GROUP BY email HAVING COUNT(email) > 1;",
+    "expectedOutput": {
+      "columns": ["email"],
+      "rows": [
+        ["a@b.com"]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Combine GROUP BY email with HAVING COUNT(email) > 1." }
+    ]
+  },
+  {
+    "id": "sql-5",
+    "title": "Customers Who Never Order",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "JOINS",
+    "scenario": "Find all customers who have never placed an order in the e-commerce store.",
+    "requirements": [
+      "Left join Customers with Orders on customerId.",
+      "Filter for records where Orders.id IS NULL.",
+      "Alias customer name as Customers."
+    ],
+    "tables": [
+      {
+        "name": "Customers",
+        "columns": ["id", "name"],
+        "rows": [
+          [1, "Joe"],
+          [2, "Henry"],
+          [3, "Sam"],
+          [4, "Max"]
+        ]
+      },
+      {
+        "name": "Orders",
+        "columns": ["id", "customerId"],
+        "rows": [
+          [1, 3],
+          [2, 1]
+        ]
+      }
+    ],
+    "starterQuery": "-- Customers with zero orders\nSELECT \n  c.name AS Customers\nFROM Customers c\nLEFT JOIN Orders o ON c.id = o.customerId\nWHERE ",
+    "solutionQuery": "SELECT c.name AS Customers FROM Customers c LEFT JOIN Orders o ON c.id = o.customerId WHERE o.id IS NULL;",
+    "expectedOutput": {
+      "columns": ["Customers"],
+      "rows": [
+        ["Henry"],
+        ["Max"]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Use a LEFT JOIN and filter where the right table foreign key IS NULL." }
+    ]
+  },
+  {
+    "id": "sql-6",
+    "title": "Delete Duplicate Emails",
+    "difficulty": "Medium",
+    "category": "SQL Practice",
+    "topic": "JOINS",
+    "scenario": "Delete all duplicate emails keeping only one unique email with the smallest id.",
+    "requirements": [
+      "Perform a self-join where p1.email = p2.email and p1.id > p2.id.",
+      "Filter or delete the higher id records."
+    ],
+    "tables": [
+      {
+        "name": "Person",
+        "columns": ["id", "email"],
+        "rows": [
+          [1, "john@example.com"],
+          [2, "bob@example.com"],
+          [3, "john@example.com"]
+        ]
+      }
+    ],
+    "starterQuery": "-- Select rows that should be retained (smallest id per email)\nSELECT \n  MIN(id) AS id, email\nFROM Person\nGROUP BY email\nORDER BY id ASC;",
+    "solutionQuery": "SELECT MIN(id) AS id, email FROM Person GROUP BY email ORDER BY id ASC;",
+    "expectedOutput": {
+      "columns": ["id", "email"],
+      "rows": [
+        [1, "john@example.com"],
+        [2, "bob@example.com"]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Group by email and select the MIN(id)." }
+    ]
+  },
+  {
+    "id": "sql-7",
+    "title": "Rising Temperature",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "JOINS",
+    "scenario": "Find all dates' IDs with higher temperatures compared to its previous dates (yesterday).",
+    "requirements": [
+      "Join Weather with itself where w1.recordDate = w2.recordDate + 1 day.",
+      "Check condition w1.temperature > w2.temperature.",
+      "Output the w1.id."
+    ],
+    "tables": [
+      {
+        "name": "Weather",
+        "columns": ["id", "recordDate", "temperature"],
+        "rows": [
+          [1, "2025-01-01", 10],
+          [2, "2025-01-02", 25],
+          [3, "2025-01-03", 20],
+          [4, "2025-01-04", 30]
+        ]
+      }
+    ],
+    "starterQuery": "-- Weather id with temperature higher than previous day\nSELECT \n  w1.id\nFROM Weather w1\nJOIN Weather w2 ON date(w1.recordDate, '-1 day') = w2.recordDate\nWHERE ",
+    "solutionQuery": "SELECT w1.id FROM Weather w1 JOIN Weather w2 ON date(w1.recordDate, '-1 day') = w2.recordDate WHERE w1.temperature > w2.temperature;",
+    "expectedOutput": {
+      "columns": ["id"],
+      "rows": [
+        [2],
+        [4]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Compare each record with the record exactly one day prior." }
+    ]
+  },
+  {
+    "id": "sql-8",
+    "title": "Top 3 Department Salaries",
+    "difficulty": "Hard",
+    "category": "SQL Practice",
+    "topic": "WINDOW_FUNCTIONS",
+    "scenario": "A high-frequency interview question from Amazon and Goldman Sachs: Find the employees who earn the top three unique salaries in each department.",
+    "requirements": [
+      "Calculate dense rank of salary partitioned by departmentId ordered by salary DESC.",
+      "Filter for ranking <= 3.",
+      "Join with Department to output Department, Employee, Salary."
+    ],
+    "tables": [
+      {
+        "name": "Department",
+        "columns": ["id", "name"],
+        "rows": [
+          [1, "IT"],
+          [2, "Sales"]
+        ]
+      },
+      {
+        "name": "Employee",
+        "columns": ["id", "name", "salary", "departmentId"],
+        "rows": [
+          [1, "Joe", 85000, 1],
+          [2, "Henry", 80000, 2],
+          [3, "Sam", 60000, 2],
+          [4, "Max", 90000, 1],
+          [5, "Janet", 69000, 1],
+          [6, "Randy", 85000, 1],
+          [7, "Will", 70000, 1]
+        ]
+      }
+    ],
+    "starterQuery": "-- Find top 3 unique salaries per department\nWITH Ranked AS (\n  SELECT \n    d.name AS Department,\n    e.name AS Employee,\n    e.salary AS Salary,\n    DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rnk\n  FROM Employee e\n  JOIN Department d ON e.departmentId = d.id\n)\nSELECT Department, Employee, Salary\nFROM Ranked\nWHERE ",
+    "solutionQuery": "WITH Ranked AS (SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary, DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rnk FROM Employee e JOIN Department d ON e.departmentId = d.id) SELECT Department, Employee, Salary FROM Ranked WHERE rnk <= 3 ORDER BY Department, Salary DESC;",
+    "expectedOutput": {
+      "columns": ["Department", "Employee", "Salary"],
+      "rows": [
+        ["IT", "Max", 90000],
+        ["IT", "Joe", 85000],
+        ["IT", "Randy", 85000],
+        ["IT", "Will", 70000],
+        ["Sales", "Henry", 80000],
+        ["Sales", "Sam", 60000]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Use DENSE_RANK() OVER (PARTITION BY departmentId ORDER BY salary DESC)." },
+      { "level": 2, "text": "Filter rnk <= 3 in an outer query." }
+    ]
+  },
+  {
+    "id": "sql-9",
+    "title": "Rank Scores",
+    "difficulty": "Medium",
+    "category": "SQL Practice",
+    "topic": "WINDOW_FUNCTIONS",
+    "scenario": "Rank scores in descending order. If there is a tie, both scores should have the same ranking, and the next ranking should be consecutive (no gaps).",
+    "requirements": [
+      "Use DENSE_RANK() ordered by score descending.",
+      "Output score and rank columns."
+    ],
+    "tables": [
+      {
+        "name": "Scores",
+        "columns": ["id", "score"],
+        "rows": [
+          [1, 3.50],
+          [2, 3.65],
+          [3, 4.00],
+          [4, 3.85],
+          [5, 4.00],
+          [6, 3.65]
+        ]
+      }
+    ],
+    "starterQuery": "-- Rank scores consecutively\nSELECT \n  score,\n  DENSE_RANK() OVER (ORDER BY score DESC) AS rank\nFROM Scores\nORDER BY score DESC;",
+    "solutionQuery": "SELECT score, DENSE_RANK() OVER (ORDER BY score DESC) AS rank FROM Scores ORDER BY score DESC;",
+    "expectedOutput": {
+      "columns": ["score", "rank"],
+      "rows": [
+        [4.00, 1],
+        [4.00, 1],
+        [3.85, 2],
+        [3.65, 3],
+        [3.65, 3],
+        [3.50, 4]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "DENSE_RANK() guarantees no gaps between consecutive numbers on ties." }
+    ]
+  },
+  {
+    "id": "sql-10",
+    "title": "Consecutive Numbers",
+    "difficulty": "Medium",
+    "category": "SQL Practice",
+    "topic": "WINDOW_FUNCTIONS",
+    "scenario": "Find all numbers that appear at least three times consecutively in a telemetry logs table.",
+    "requirements": [
+      "Use LAG and LEAD functions or multi-table join on sequential IDs.",
+      "Filter where current = prev and current = next.",
+      "Return distinct numbers aliased as ConsecutiveNums."
+    ],
+    "tables": [
+      {
+        "name": "Logs",
+        "columns": ["id", "num"],
+        "rows": [
+          [1, 1],
+          [2, 1],
+          [3, 1],
+          [4, 2],
+          [5, 1],
+          [6, 2],
+          [7, 2]
+        ]
+      }
+    ],
+    "starterQuery": "-- Find numbers appearing 3 times consecutively\nSELECT DISTINCT num AS ConsecutiveNums\nFROM (\n  SELECT num, \n         LAG(num) OVER (ORDER BY id) AS prev_num,\n         LEAD(num) OVER (ORDER BY id) AS next_num\n  FROM Logs\n)\nWHERE ",
+    "solutionQuery": "SELECT DISTINCT num AS ConsecutiveNums FROM (SELECT num, LAG(num) OVER (ORDER BY id) AS prev_num, LEAD(num) OVER (ORDER BY id) AS next_num FROM Logs) WHERE num = prev_num AND num = next_num;",
+    "expectedOutput": {
+      "columns": ["ConsecutiveNums"],
+      "rows": [
+        [1]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "LAG(num, 1) and LEAD(num, 1) let you inspect neighboring rows without expensive joins." }
+    ]
+  },
+  {
+    "id": "sql-11",
+    "title": "Average Selling Price",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "AGGREGATIONS",
+    "scenario": "Calculate the average selling price for each product. Total price divided by total units sold.",
+    "requirements": [
+      "Join Prices with UnitsSold where purchase_date is between start_date and end_date.",
+      "Calculate ROUND(SUM(price * units) / SUM(units), 2).",
+      "Group by product_id."
+    ],
+    "tables": [
+      {
+        "name": "Prices",
+        "columns": ["product_id", "start_date", "end_date", "price"],
+        "rows": [
+          [1, "2025-02-17", "2025-02-28", 5],
+          [1, "2025-03-01", "2025-03-22", 20],
+          [2, "2025-02-01", "2025-02-20", 15],
+          [2, "2025-02-21", "2025-03-31", 30]
+        ]
+      },
+      {
+        "name": "UnitsSold",
+        "columns": ["product_id", "purchase_date", "units"],
+        "rows": [
+          [1, "2025-02-25", 100],
+          [1, "2025-03-01", 15],
+          [2, "2025-02-10", 200],
+          [2, "2025-03-22", 30]
+        ]
+      }
+    ],
+    "starterQuery": "-- Average selling price per product\nSELECT \n  p.product_id,\n  ROUND(SUM(p.price * u.units) * 1.0 / SUM(u.units), 2) AS average_price\nFROM Prices p\nJOIN UnitsSold u ON p.product_id = u.product_id \n  AND u.purchase_date BETWEEN p.start_date AND p.end_date\nGROUP BY p.product_id;",
+    "solutionQuery": "SELECT p.product_id, ROUND(SUM(p.price * u.units) * 1.0 / SUM(u.units), 2) AS average_price FROM Prices p JOIN UnitsSold u ON p.product_id = u.product_id AND u.purchase_date BETWEEN p.start_date AND p.end_date GROUP BY p.product_id;",
+    "expectedOutput": {
+      "columns": ["product_id", "average_price"],
+      "rows": [
+        [1, 6.96],
+        [2, 16.96]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Join on product_id and check purchase_date BETWEEN start_date AND end_date." }
+    ]
+  },
+  {
+    "id": "sql-12",
+    "title": "Immediate Food Delivery",
+    "difficulty": "Medium",
+    "category": "SQL Practice",
+    "topic": "AGGREGATIONS",
+    "scenario": "If the customer's preferred delivery date is the same as the order date, the order is called immediate. Find the percentage of immediate orders in customer's first orders.",
+    "requirements": [
+      "Find each customer's first order date using MIN(order_date).",
+      "Calculate percentage where first order date equals customer_pref_delivery_date."
+    ],
+    "tables": [
+      {
+        "name": "Delivery",
+        "columns": ["delivery_id", "customer_id", "order_date", "customer_pref_delivery_date"],
+        "rows": [
+          [1, 1, "2025-08-01", "2025-08-02"],
+          [2, 2, "2025-08-02", "2025-08-02"],
+          [3, 1, "2025-08-11", "2025-08-11"],
+          [4, 3, "2025-08-24", "2025-08-24"],
+          [5, 4, "2025-08-21", "2025-08-22"]
+        ]
+      }
+    ],
+    "starterQuery": "-- Percentage of immediate first orders\nWITH FirstOrders AS (\n  SELECT customer_id, MIN(order_date) AS min_date\n  FROM Delivery\n  GROUP BY customer_id\n)\nSELECT \n  ROUND(100.0 * SUM(CASE WHEN d.order_date = d.customer_pref_delivery_date THEN 1 ELSE 0 END) / COUNT(*), 2) AS immediate_percentage\nFROM Delivery d\nJOIN FirstOrders fo ON d.customer_id = fo.customer_id AND d.order_date = fo.min_date;",
+    "solutionQuery": "WITH FirstOrders AS (SELECT customer_id, MIN(order_date) AS min_date FROM Delivery GROUP BY customer_id) SELECT ROUND(100.0 * SUM(CASE WHEN d.order_date = d.customer_pref_delivery_date THEN 1 ELSE 0 END) / COUNT(*), 2) AS immediate_percentage FROM Delivery d JOIN FirstOrders fo ON d.customer_id = fo.customer_id AND d.order_date = fo.min_date;",
+    "expectedOutput": {
+      "columns": ["immediate_percentage"],
+      "rows": [
+        [50.00]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Isolate the first order per customer using a CTE with MIN(order_date)." }
+    ]
+  },
+  {
+    "id": "sql-13",
+    "title": "Fix Names in a Table",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "DATA_FILTERING",
+    "scenario": "Fix customer names so that only the first character is uppercase and the rest of the characters are lowercase.",
+    "requirements": [
+      "Use UPPER(SUBSTR(name, 1, 1)) || LOWER(SUBSTR(name, 2)).",
+      "Order results by user_id ascending."
+    ],
+    "tables": [
+      {
+        "name": "Users",
+        "columns": ["user_id", "name"],
+        "rows": [
+          [1, "aLiCe"],
+          [2, "bOB"]
+        ]
+      }
+    ],
+    "starterQuery": "-- Format names with first letter capitalized\nSELECT \n  user_id,\n  UPPER(SUBSTR(name, 1, 1)) || LOWER(SUBSTR(name, 2)) AS name\nFROM Users\nORDER BY user_id ASC;",
+    "solutionQuery": "SELECT user_id, UPPER(SUBSTR(name, 1, 1)) || LOWER(SUBSTR(name, 2)) AS name FROM Users ORDER BY user_id ASC;",
+    "expectedOutput": {
+      "columns": ["user_id", "name"],
+      "rows": [
+        [1, "Alice"],
+        [2, "Bob"]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Concatenate UPPER of first character with LOWER of the substring from index 2." }
+    ]
+  },
+  {
+    "id": "sql-14",
+    "title": "Project Employees Analysis",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "AGGREGATIONS",
+    "scenario": "Report the average experience years of all the employees for each project rounded to 2 digits.",
+    "requirements": [
+      "Join Project with Employee on employee_id.",
+      "Calculate ROUND(AVG(experience_years), 2).",
+      "Group by project_id."
+    ],
+    "tables": [
+      {
+        "name": "Project",
+        "columns": ["project_id", "employee_id"],
+        "rows": [
+          [1, 1],
+          [1, 2],
+          [1, 3],
+          [2, 1],
+          [2, 4]
+        ]
+      },
+      {
+        "name": "Employee",
+        "columns": ["employee_id", "name", "experience_years"],
+        "rows": [
+          [1, "Khaled", 3],
+          [2, "Ali", 2],
+          [3, "John", 1],
+          [4, "Doe", 2]
+        ]
+      }
+    ],
+    "starterQuery": "-- Average experience years per project\nSELECT \n  p.project_id,\n  ROUND(AVG(e.experience_years), 2) AS average_years\nFROM Project p\nJOIN Employee e ON p.employee_id = e.employee_id\nGROUP BY p.project_id;",
+    "solutionQuery": "SELECT p.project_id, ROUND(AVG(e.experience_years), 2) AS average_years FROM Project p JOIN Employee e ON p.employee_id = e.employee_id GROUP BY p.project_id;",
+    "expectedOutput": {
+      "columns": ["project_id", "average_years"],
+      "rows": [
+        [1, 2.00],
+        [2, 2.50]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Group by project_id and apply AVG(experience_years)." }
+    ]
+  },
+  {
+    "id": "sql-15",
+    "title": "Recyclable and Low Fat Products",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "DATA_FILTERING",
+    "scenario": "Find the product IDs of products that are both low fat ('Y') and recyclable ('Y').",
+    "requirements": [
+      "Filter products where low_fats = 'Y' AND recyclable = 'Y'.",
+      "Output product_id."
+    ],
+    "tables": [
+      {
+        "name": "Products",
+        "columns": ["product_id", "low_fats", "recyclable"],
+        "rows": [
+          [0, "Y", "N"],
+          [1, "Y", "Y"],
+          [2, "N", "Y"],
+          [3, "Y", "Y"],
+          [4, "N", "N"]
+        ]
+      }
+    ],
+    "starterQuery": "-- Products both low fat and recyclable\nSELECT product_id\nFROM Products\nWHERE ",
+    "solutionQuery": "SELECT product_id FROM Products WHERE low_fats = 'Y' AND recyclable = 'Y';",
+    "expectedOutput": {
+      "columns": ["product_id"],
+      "rows": [
+        [1],
+        [3]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Apply a simple WHERE clause with AND condition." }
+    ]
+  },
+  {
+    "id": "sql-16",
+    "title": "Calculate Special Bonus",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "DATA_FILTERING",
+    "scenario": "Calculate 100% bonus for employees whose employee_id is an odd number and name does NOT start with 'M'. Bonus is 0 otherwise.",
+    "requirements": [
+      "Use CASE WHEN employee_id % 2 = 1 AND name NOT LIKE 'M%' THEN salary ELSE 0 END.",
+      "Order by employee_id ASC."
+    ],
+    "tables": [
+      {
+        "name": "Employees",
+        "columns": ["employee_id", "name", "salary"],
+        "rows": [
+          [2, "Meir", 3000],
+          [3, "Michael", 3800],
+          [7, "Addilyn", 7400],
+          [8, "Juan", 6100],
+          [9, "Kannon", 7700]
+        ]
+      }
+    ],
+    "starterQuery": "-- Compute bonus based on employee id and name\nSELECT \n  employee_id,\n  CASE \n    WHEN employee_id % 2 = 1 AND name NOT LIKE 'M%' THEN salary \n    ELSE 0 \n  END AS bonus\nFROM Employees\nORDER BY employee_id ASC;",
+    "solutionQuery": "SELECT employee_id, CASE WHEN employee_id % 2 = 1 AND name NOT LIKE 'M%' THEN salary ELSE 0 END AS bonus FROM Employees ORDER BY employee_id ASC;",
+    "expectedOutput": {
+      "columns": ["employee_id", "bonus"],
+      "rows": [
+        [2, 0],
+        [3, 0],
+        [7, 7400],
+        [8, 0],
+        [9, 7700]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Use modulo operator (%) and NOT LIKE 'M%' inside CASE WHEN." }
+    ]
+  },
+  {
+    "id": "sql-17",
+    "title": "Swap Salary",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "DATA_FILTERING",
+    "scenario": "Swap all 'f' and 'm' sex values in a salary table (i.e. change 'm' to 'f' and 'f' to 'm').",
+    "requirements": [
+      "Use CASE WHEN sex = 'm' THEN 'f' ELSE 'm' END.",
+      "Output id, name, updated sex, and salary."
+    ],
+    "tables": [
+      {
+        "name": "Salary",
+        "columns": ["id", "name", "sex", "salary"],
+        "rows": [
+          [1, "A", "m", 2500],
+          [2, "B", "f", 1500],
+          [3, "C", "m", 5500],
+          [4, "D", "f", 500]
+        ]
+      }
+    ],
+    "starterQuery": "-- Swap sex values\nSELECT \n  id, name,\n  CASE WHEN sex = 'm' THEN 'f' ELSE 'm' END AS sex,\n  salary\nFROM Salary\nORDER BY id ASC;",
+    "solutionQuery": "SELECT id, name, CASE WHEN sex = 'm' THEN 'f' ELSE 'm' END AS sex, salary FROM Salary ORDER BY id ASC;",
+    "expectedOutput": {
+      "columns": ["id", "name", "sex", "salary"],
+      "rows": [
+        [1, "A", "f", 2500],
+        [2, "B", "m", 1500],
+        [3, "C", "f", 5500],
+        [4, "D", "m", 500]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "A single CASE statement handles swapping between two values." }
+    ]
+  },
+  {
+    "id": "sql-18",
+    "title": "Game Play Analysis I",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "AGGREGATIONS",
+    "scenario": "Find the first login date for each gamer player in an activity tracking table.",
+    "requirements": [
+      "Group by player_id.",
+      "Extract MIN(event_date) aliased as first_login."
+    ],
+    "tables": [
+      {
+        "name": "Activity",
+        "columns": ["player_id", "device_id", "event_date", "games_played"],
+        "rows": [
+          [1, 2, "2025-03-01", 5],
+          [1, 2, "2025-05-02", 6],
+          [2, 3, "2025-06-25", 1],
+          [3, 1, "2025-03-02", 0],
+          [3, 4, "2025-07-03", 5]
+        ]
+      }
+    ],
+    "starterQuery": "-- First login date for each player\nSELECT \n  player_id,\n  MIN(event_date) AS first_login\nFROM Activity\nGROUP BY player_id\nORDER BY player_id ASC;",
+    "solutionQuery": "SELECT player_id, MIN(event_date) AS first_login FROM Activity GROUP BY player_id ORDER BY player_id ASC;",
+    "expectedOutput": {
+      "columns": ["player_id", "first_login"],
+      "rows": [
+        [1, "2025-03-01"],
+        [2, "2025-06-25"],
+        [3, "2025-03-02"]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "GROUP BY player_id with MIN(event_date)." }
+    ]
+  },
+  {
+    "id": "sql-19",
+    "title": "Find Total Time Spent by Each Employee",
+    "difficulty": "Easy",
+    "category": "SQL Practice",
+    "topic": "AGGREGATIONS",
+    "scenario": "Calculate the total time in minutes spent by each employee on each day at the office (out_time - in_time).",
+    "requirements": [
+      "Group by event_day and emp_id.",
+      "Calculate SUM(out_time - in_time) aliased as total_time.",
+      "Alias event_day as day."
+    ],
+    "tables": [
+      {
+        "name": "Employees",
+        "columns": ["emp_id", "event_day", "in_time", "out_time"],
+        "rows": [
+          [1, "2025-11-28", 4, 32],
+          [1, "2025-11-28", 55, 200],
+          [1, "2025-12-03", 1, 42],
+          [2, "2025-11-28", 3, 33],
+          [2, "2025-12-09", 47, 74]
+        ]
+      }
+    ],
+    "starterQuery": "-- Total time in minutes per employee per day\nSELECT \n  event_day AS day,\n  emp_id,\n  SUM(out_time - in_time) AS total_time\nFROM Employees\nGROUP BY event_day, emp_id\nORDER BY day ASC, emp_id ASC;",
+    "solutionQuery": "SELECT event_day AS day, emp_id, SUM(out_time - in_time) AS total_time FROM Employees GROUP BY event_day, emp_id ORDER BY day ASC, emp_id ASC;",
+    "expectedOutput": {
+      "columns": ["day", "emp_id", "total_time"],
+      "rows": [
+        ["2025-11-28", 1, 173],
+        ["2025-11-28", 2, 30],
+        ["2025-12-03", 1, 41],
+        ["2025-12-09", 2, 27]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Group by both event_day and emp_id, summing the difference between out_time and in_time." }
+    ]
+  },
+  {
+    "id": "sql-20",
+    "title": "Sales Analysis III",
+    "difficulty": "Medium",
+    "category": "SQL Practice",
+    "topic": "SUBQUERIES",
+    "scenario": "Report the products that were only sold in the first quarter of 2025 (between 2025-01-01 and 2025-03-31 inclusive).",
+    "requirements": [
+      "Join Product with Sales on product_id.",
+      "Ensure MIN(sale_date) >= '2025-01-01' AND MAX(sale_date) <= '2025-03-31'.",
+      "Output product_id and product_name."
+    ],
+    "tables": [
+      {
+        "name": "Product",
+        "columns": ["product_id", "product_name", "unit_price"],
+        "rows": [
+          [1, "S8", 1000],
+          [2, "G4", 800],
+          [3, "iPhone", 1400]
+        ]
+      },
+      {
+        "name": "Sales",
+        "columns": ["seller_id", "product_id", "buyer_id", "sale_date", "quantity", "price"],
+        "rows": [
+          [1, 1, 1, "2025-01-21", 2, 2000],
+          [1, 2, 2, "2025-02-17", 1, 800],
+          [2, 2, 3, "2025-06-02", 1, 800],
+          [3, 3, 4, "2025-05-13", 2, 2800]
+        ]
+      }
+    ],
+    "starterQuery": "-- Products sold exclusively in Q1 2025\nSELECT \n  p.product_id,\n  p.product_name\nFROM Product p\nJOIN Sales s ON p.product_id = s.product_id\nGROUP BY p.product_id, p.product_name\nHAVING MIN(s.sale_date) >= '2025-01-01' AND MAX(s.sale_date) <= '2025-03-31';",
+    "solutionQuery": "SELECT p.product_id, p.product_name FROM Product p JOIN Sales s ON p.product_id = s.product_id GROUP BY p.product_id, p.product_name HAVING MIN(s.sale_date) >= '2025-01-01' AND MAX(s.sale_date) <= '2025-03-31';",
+    "expectedOutput": {
+      "columns": ["product_id", "product_name"],
+      "rows": [
+        [1, "S8"]
+      ]
+    },
+    "hints": [
+      { "level": 1, "text": "Group by product and use HAVING with MIN(sale_date) and MAX(sale_date)." }
+    ]
+  }
+]

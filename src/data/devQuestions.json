@@ -1,0 +1,833 @@
+[
+  {
+    "id": "dev-1",
+    "title": "Sliding Window Token Bucket Rate Limiter",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "API_DESIGN",
+    "stack": "javascript",
+    "scenario": "You are building an in-memory API gateway middleware at a high-volume fintech platform. Prevent abusive traffic per client IP without dropping legitimate bursts.",
+    "requirements": [
+      "Implement class TokenBucket(capacity, refillRatePerSecond).",
+      "capacity is maximum tokens bucket can hold at any time.",
+      "refillRatePerSecond determines continuous token replenishment over elapsed time.",
+      "take(tokens = 1) returns true if enough tokens exist and consumes them; otherwise returns false without deducting."
+    ],
+    "starterCode": "class TokenBucket {\n  constructor(capacity, refillRatePerSecond) {\n    this.capacity = capacity;\n    this.refillRate = refillRatePerSecond;\n    this.tokens = capacity;\n    this.lastRefill = Date.now();\n  }\n\n  refill() {\n    // TODO: Calculate elapsed time and replenish tokens up to capacity\n  }\n\n  take(tokens = 1) {\n    // TODO: Replenish and check if requested tokens can be consumed\n    return false;\n  }\n}\n\nmodule.exports = { TokenBucket };",
+    "solutionCode": "class TokenBucket {\n  constructor(capacity, refillRatePerSecond) {\n    this.capacity = capacity;\n    this.refillRate = refillRatePerSecond;\n    this.tokens = capacity;\n    this.lastRefill = Date.now();\n  }\n\n  refill() {\n    const now = Date.now();\n    const elapsedSec = (now - this.lastRefill) / 1000;\n    this.tokens = Math.min(this.capacity, this.tokens + elapsedSec * this.refillRate);\n    this.lastRefill = now;\n  }\n\n  take(tokens = 1) {\n    this.refill();\n    if (this.tokens >= tokens) {\n      this.tokens -= tokens;\n      return true;\n    }\n    return false;\n  }\n}\n\nmodule.exports = { TokenBucket };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Initial burst consumption within bucket capacity",
+        "input": "bucket = new TokenBucket(5, 1); bucket.take(3);",
+        "expected": "true"
+      },
+      {
+        "id": 2,
+        "description": "Reject request when bucket is exhausted",
+        "input": "bucket = new TokenBucket(3, 1); bucket.take(3); bucket.take(1);",
+        "expected": "false"
+      },
+      {
+        "id": 3,
+        "description": "Partial consumption preserves remaining tokens",
+        "input": "bucket = new TokenBucket(10, 2); bucket.take(4); bucket.take(6); bucket.take(1);",
+        "expected": "false"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Track lastRefill timestamp and calculate elapsed time in seconds on each call to refill()." },
+      { "level": 2, "text": "Replenish tokens with Math.min(capacity, tokens + elapsedSec * refillRate)." }
+    ]
+  },
+  {
+    "id": "dev-2",
+    "title": "Promise Pool Concurrency Throttler",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "ASYNC_FLOW",
+    "stack": "javascript",
+    "scenario": "Your batch ingestion service needs to scrape 1,000 product pages, but the target server limits concurrent requests to 5 sockets. Implement an async task throttler that runs tasks with limited concurrency and preserves the original task result order.",
+    "requirements": [
+      "Implement promisePool(tasks, limit) returning a Promise resolving to results in original task order.",
+      "tasks is an array of zero-argument async functions.",
+      "At most `limit` tasks must be running simultaneously at any given time.",
+      "If any task throws, reject immediately or propagate error correctly."
+    ],
+    "starterCode": "async function promisePool(tasks, limit) {\n  // TODO: Run tasks array with at most 'limit' concurrent executions\n  // Return array of resolved task values matching original order\n}\n\nmodule.exports = { promisePool };",
+    "solutionCode": "async function promisePool(tasks, limit) {\n  const results = new Array(tasks.length);\n  let currentIndex = 0;\n\n  const worker = async () => {\n    while (currentIndex < tasks.length) {\n      const index = currentIndex++;\n      results[index] = await tasks[index]();\n    }\n  };\n\n  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());\n  await Promise.all(workers);\n  return results;\n}\n\nmodule.exports = { promisePool };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Executes 3 tasks with concurrency 2 in order",
+        "input": "tasks = [() => Promise.resolve('A'), () => Promise.resolve('B'), () => Promise.resolve('C')]; pool(tasks, 2)",
+        "expected": "['A', 'B', 'C']"
+      },
+      {
+        "id": 2,
+        "description": "Empty tasks array resolves to empty array",
+        "input": "pool([], 3)",
+        "expected": "[]"
+      },
+      {
+        "id": 3,
+        "description": "Concurrency limit greater than task count",
+        "input": "tasks = [() => Promise.resolve(1), () => Promise.resolve(2)]; pool(tasks, 10)",
+        "expected": "[1, 2]"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Spawn `Math.min(limit, tasks.length)` worker functions that pull indices from a shared counter." },
+      { "level": 2, "text": "Preallocate `results = new Array(tasks.length)` and store each result at its original index." }
+    ]
+  },
+  {
+    "id": "dev-3",
+    "title": "Deep PII Data Sanitizer & Masker",
+    "difficulty": "Easy",
+    "category": "Dev Practices",
+    "topic": "DATA_PIPELINE",
+    "stack": "javascript",
+    "scenario": "Before pushing application logs to Datadog/Elasticsearch, all sensitive customer data (passwords, credit cards, CVVs, tokens) must be masked with '***REDACTED***'.",
+    "requirements": [
+      "Implement maskSensitiveData(payload, sensitiveKeys).",
+      "Recursively traverse nested objects and arrays.",
+      "If an object key exists in sensitiveKeys (case-insensitive check), replace its value with '***REDACTED***'.",
+      "Do not mutate the original input object; return a clean deep clone."
+    ],
+    "starterCode": "function maskSensitiveData(payload, sensitiveKeys = ['password', 'token', 'cvv', 'secret']) {\n  // TODO: Recursively sanitize and mask sensitive keys\n  return payload;\n}\n\nmodule.exports = { maskSensitiveData };",
+    "solutionCode": "function maskSensitiveData(payload, sensitiveKeys = ['password', 'token', 'cvv', 'secret']) {\n  if (payload === null || typeof payload !== 'object') {\n    return payload;\n  }\n\n  const normalizedKeys = new Set(sensitiveKeys.map(k => k.toLowerCase()));\n\n  if (Array.isArray(payload)) {\n    return payload.map(item => maskSensitiveData(item, sensitiveKeys));\n  }\n\n  const result = {};\n  for (const [key, val] of Object.entries(payload)) {\n    if (normalizedKeys.has(key.toLowerCase())) {\n      result[key] = '***REDACTED***';\n    } else {\n      result[key] = maskSensitiveData(val, sensitiveKeys);\n    }\n  }\n  return result;\n}\n\nmodule.exports = { maskSensitiveData };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Mask top-level password field",
+        "input": "maskSensitiveData({ user: 'alice', password: 'secret123' })",
+        "expected": "{ user: 'alice', password: '***REDACTED***' }"
+      },
+      {
+        "id": 2,
+        "description": "Mask nested array of authentication credentials",
+        "input": "maskSensitiveData({ auth: [{ token: 'abc' }, { token: 'xyz' }] })",
+        "expected": "{ auth: [{ token: '***REDACTED***' }, { token: '***REDACTED***' }] }"
+      },
+      {
+        "id": 3,
+        "description": "Case-insensitive key match: 'SECRET' and 'Cvv'",
+        "input": "maskSensitiveData({ payment: { Cvv: '123', SECRET: 'pass' } })",
+        "expected": "{ payment: { Cvv: '***REDACTED***', SECRET: '***REDACTED***' } }"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Normalize sensitiveKeys into a Set of lowercase strings for O(1) comparison." },
+      { "level": 2, "text": "Handle primitive values, arrays, and objects separately to avoid recursion issues on primitives." }
+    ]
+  },
+  {
+    "id": "dev-4",
+    "title": "LRU Cache (Least Recently Used)",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "SYSTEM_DESIGN",
+    "stack": "javascript",
+    "scenario": "Implement an O(1) in-memory LRU cache to store resolved DNS records and database queries, evicting the least recently used entry when capacity is exceeded.",
+    "requirements": [
+      "Implement class LRUCache(capacity).",
+      "get(key) returns the value if exists (updating usage to most recent), otherwise -1.",
+      "put(key, value) updates value if exists; if new, inserts it. If size exceeds capacity, evicts least recently used item.",
+      "Both operations must perform in O(1) average time complexity."
+    ],
+    "starterCode": "class LRUCache {\n  constructor(capacity) {\n    this.capacity = capacity;\n    // TODO: Initialize data structures (e.g. Map)\n  }\n\n  get(key) {\n    // TODO: Retrieve key and refresh its access order\n    return -1;\n  }\n\n  put(key, value) {\n    // TODO: Insert or update key, evicting oldest if over capacity\n  }\n}\n\nmodule.exports = { LRUCache };",
+    "solutionCode": "class LRUCache {\n  constructor(capacity) {\n    this.capacity = capacity;\n    this.map = new Map();\n  }\n\n  get(key) {\n    if (!this.map.has(key)) return -1;\n    const value = this.map.get(key);\n    this.map.delete(key);\n    this.map.set(key, value);\n    return value;\n  }\n\n  put(key, value) {\n    if (this.map.has(key)) {\n      this.map.delete(key);\n    } else if (this.map.size >= this.capacity) {\n      const oldestKey = this.map.keys().next().value;\n      this.map.delete(oldestKey);\n    }\n    this.map.set(key, value);\n  }\n}\n\nmodule.exports = { LRUCache };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Basic put and get operations",
+        "input": "cache = new LRUCache(2); cache.put(1, 1); cache.put(2, 2); cache.get(1);",
+        "expected": "1"
+      },
+      {
+        "id": 2,
+        "description": "Evicts least recently used key on overflow",
+        "input": "cache = new LRUCache(2); cache.put(1, 1); cache.put(2, 2); cache.put(3, 3); cache.get(1);",
+        "expected": "-1"
+      },
+      {
+        "id": 3,
+        "description": "Accessing key updates freshness and preserves it from eviction",
+        "input": "cache = new LRUCache(2); cache.put(1, 1); cache.put(2, 2); cache.get(1); cache.put(3, 3); cache.get(2);",
+        "expected": "-1"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "JavaScript's `Map` retains insertion order: `.keys().next().value` returns the oldest inserted key." },
+      { "level": 2, "text": "When getting an existing key, delete it and immediately re-set it to move it to the end of insertion order." }
+    ]
+  },
+  {
+    "id": "dev-5",
+    "title": "Debounce Function with Immediate & Cancel",
+    "difficulty": "Easy",
+    "category": "Dev Practices",
+    "topic": "FRONTEND_STATE",
+    "stack": "javascript",
+    "scenario": "A fast search input on the candidate job board fires API requests on every keystroke. Implement debounce with support for immediate invocation and manual cancellation.",
+    "requirements": [
+      "Implement debounce(fn, waitMs, options = { immediate: false }).",
+      "Delays invoking fn until waitMs milliseconds have elapsed since the last time it was invoked.",
+      "If immediate is true, trigger fn on leading edge instead of trailing.",
+      "Returned function must have a .cancel() method that cancels pending execution."
+    ],
+    "starterCode": "function debounce(fn, waitMs, { immediate = false } = {}) {\n  let timer = null;\n\n  const debounced = function(...args) {\n    // TODO: Implement debounced invocation logic\n  };\n\n  debounced.cancel = function() {\n    // TODO: Cancel pending timer\n  };\n\n  return debounced;\n}\n\nmodule.exports = { debounce };",
+    "solutionCode": "function debounce(fn, waitMs, { immediate = false } = {}) {\n  let timer = null;\n\n  const debounced = function(...args) {\n    const callNow = immediate && !timer;\n\n    clearTimeout(timer);\n    timer = setTimeout(() => {\n      timer = null;\n      if (!immediate) {\n        fn.apply(this, args);\n      }\n    }, waitMs);\n\n    if (callNow) {\n      fn.apply(this, args);\n    }\n  };\n\n  debounced.cancel = function() {\n    if (timer) {\n      clearTimeout(timer);\n      timer = null;\n    }\n  };\n\n  return debounced;\n}\n\nmodule.exports = { debounce };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Fires only once after trailing delay",
+        "input": "Calls debounced 5 times in 10ms with wait 50ms",
+        "expected": "fn executed 1 time"
+      },
+      {
+        "id": 2,
+        "description": "Immediate flag executes immediately on leading edge",
+        "input": "Calls debounced with immediate: true",
+        "expected": "fn executed immediately"
+      },
+      {
+        "id": 3,
+        "description": "Cancel method stops pending execution",
+        "input": "Calls debounced then debounced.cancel()",
+        "expected": "fn never executes"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Store the timer id in a closure and clear it whenever the debounced function is invoked again." },
+      { "level": 2, "text": "If immediate is true, call fn immediately when timer is null, then start the cooldown timer." }
+    ]
+  },
+  {
+    "id": "dev-6",
+    "title": "Deep Clone with Circular Reference Support",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "DATA_PIPELINE",
+    "stack": "javascript",
+    "scenario": "A state machine snapshot serializer crashes with 'RangeError: Maximum call stack size exceeded' when cloning cyclic state graphs. Build a resilient deep cloner.",
+    "requirements": [
+      "Implement deepClone(value, seen = new WeakMap()).",
+      "Clones nested objects, arrays, Dates, and RegExps.",
+      "Handles circular references by reusing cloned references stored in WeakMap.",
+      "Preserves primitives unchanged."
+    ],
+    "starterCode": "function deepClone(value, seen = new WeakMap()) {\n  // TODO: Recursively clone value handling circular references\n  return value;\n}\n\nmodule.exports = { deepClone };",
+    "solutionCode": "function deepClone(value, seen = new WeakMap()) {\n  if (value === null || typeof value !== 'object') {\n    return value;\n  }\n  if (value instanceof Date) return new Date(value.getTime());\n  if (value instanceof RegExp) return new RegExp(value.source, value.flags);\n  if (seen.has(value)) return seen.get(value);\n\n  const copy = Array.isArray(value) ? [] : {};\n  seen.set(value, copy);\n\n  for (const [key, val] of Object.entries(value)) {\n    copy[key] = deepClone(val, seen);\n  }\n  return copy;\n}\n\nmodule.exports = { deepClone };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Deep clone nested object without reference sharing",
+        "input": "obj = { a: { b: 2 } }; clone = deepClone(obj); clone.a.b = 99; obj.a.b;",
+        "expected": "2"
+      },
+      {
+        "id": 2,
+        "description": "Handle circular reference without infinite loop",
+        "input": "obj = { name: 'cycle' }; obj.self = obj; clone = deepClone(obj); clone.self === clone;",
+        "expected": "true"
+      },
+      {
+        "id": 3,
+        "description": "Properly clones Date and RegExp instances",
+        "input": "clone = deepClone({ d: new Date('2026-01-01'), r: /abc/g }); clone.d instanceof Date;",
+        "expected": "true"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Use a WeakMap to map original object references to their cloned copies." },
+      { "level": 2, "text": "Set `seen.set(value, copy)` BEFORE recursively processing child properties to resolve cyclic references." }
+    ]
+  },
+  {
+    "id": "dev-7",
+    "title": "Type-Safe Event Emitter with Once & Off",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "SYSTEM_DESIGN",
+    "stack": "javascript",
+    "scenario": "You are building the real-time event distribution layer for live coding multiplayer rooms. Build a standalone event bus without Node.js EventEmitter dependencies.",
+    "requirements": [
+      "Implement class EventEmitter.",
+      "on(eventName, listener): registers listener, returns unsubscribe function.",
+      "emit(eventName, ...args): invokes all registered listeners with args.",
+      "off(eventName, listener): removes specific listener.",
+      "once(eventName, listener): executes listener once and automatically unregisters."
+    ],
+    "starterCode": "class EventEmitter {\n  constructor() {\n    this.events = new Map();\n  }\n\n  on(eventName, listener) {\n    // TODO: Register listener and return unsubscribe function\n  }\n\n  emit(eventName, ...args) {\n    // TODO: Call all listeners for this event with args\n  }\n\n  off(eventName, listener) {\n    // TODO: Remove listener\n  }\n\n  once(eventName, listener) {\n    // TODO: Fire listener once and auto-remove\n  }\n}\n\nmodule.exports = { EventEmitter };",
+    "solutionCode": "class EventEmitter {\n  constructor() {\n    this.events = new Map();\n  }\n\n  on(eventName, listener) {\n    if (!this.events.has(eventName)) {\n      this.events.set(eventName, new Set());\n    }\n    this.events.get(eventName).add(listener);\n    return () => this.off(eventName, listener);\n  }\n\n  emit(eventName, ...args) {\n    if (!this.events.has(eventName)) return false;\n    const listeners = Array.from(this.events.get(eventName));\n    for (const fn of listeners) {\n      fn(...args);\n    }\n    return listeners.length > 0;\n  }\n\n  off(eventName, listener) {\n    if (!this.events.has(eventName)) return;\n    const set = this.events.get(eventName);\n    set.delete(listener);\n    if (set.size === 0) {\n      this.events.delete(eventName);\n    }\n  }\n\n  once(eventName, listener) {\n    const wrapper = (...args) => {\n      this.off(eventName, wrapper);\n      listener(...args);\n    };\n    return this.on(eventName, wrapper);\n  }\n}\n\nmodule.exports = { EventEmitter };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Emits events with arguments to registered listeners",
+        "input": "em = new EventEmitter(); em.on('msg', x => val = x); em.emit('msg', 'hello'); val;",
+        "expected": "'hello'"
+      },
+      {
+        "id": 2,
+        "description": "Once listener executes only on first emit",
+        "input": "count = 0; em.once('ping', () => count++); em.emit('ping'); em.emit('ping'); count;",
+        "expected": "1"
+      },
+      {
+        "id": 3,
+        "description": "Unsubscribe returned from on() removes listener",
+        "input": "unsub = em.on('test', fn); unsub(); em.emit('test');",
+        "expected": "fn not called"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Use a `Set` for each event in a Map to prevent duplicate registrations and enable fast deletion." },
+      { "level": 2, "text": "In `once`, create a wrapper function that calls `this.off` right before invoking the original listener." }
+    ]
+  },
+  {
+    "id": "dev-8",
+    "title": "Async Retry with Exponential Backoff & Jitter",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "ASYNC_FLOW",
+    "stack": "javascript",
+    "scenario": "Downstream payment webhook calls fail intermittently due to network blips. Implement resilient retry logic with exponential backoff and randomized jitter to avoid thundering herd.",
+    "requirements": [
+      "Implement retryWithBackoff(fn, options).",
+      "options: { maxRetries: 3, baseDelayMs: 100, maxDelayMs: 2000, jitter: true }.",
+      "Delay between attempt n (0-indexed) is min(maxDelayMs, baseDelayMs * 2^n).",
+      "If jitter is true, multiply delay by random factor between 0.5 and 1.5.",
+      "If all attempts fail, reject with the error from the final attempt."
+    ],
+    "starterCode": "async function retryWithBackoff(fn, {\n  maxRetries = 3,\n  baseDelayMs = 100,\n  maxDelayMs = 2000,\n  jitter = true\n} = {}) {\n  // TODO: Retry fn up to maxRetries with exponential backoff\n}\n\nmodule.exports = { retryWithBackoff };",
+    "solutionCode": "async function retryWithBackoff(fn, {\n  maxRetries = 3,\n  baseDelayMs = 100,\n  maxDelayMs = 2000,\n  jitter = true\n} = {}) {\n  let lastError;\n\n  for (let attempt = 0; attempt <= maxRetries; attempt++) {\n    try {\n      return await fn();\n    } catch (err) {\n      lastError = err;\n      if (attempt === maxRetries) break;\n\n      let delay = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt));\n      if (jitter) {\n        const jitterFactor = 0.5 + Math.random();\n        delay = Math.round(delay * jitterFactor);\n      }\n      await new Promise(r => setTimeout(r, delay));\n    }\n  }\n\n  throw lastError;\n}\n\nmodule.exports = { retryWithBackoff };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Resolves immediately on first attempt without retrying",
+        "input": "retryWithBackoff(() => Promise.resolve('SUCCESS'))",
+        "expected": "'SUCCESS'"
+      },
+      {
+        "id": 2,
+        "description": "Succeeds on 2nd retry attempt after failure",
+        "input": "let tries = 0; retryWithBackoff(() => ++tries === 2 ? 'OK' : Promise.reject('ERR'))",
+        "expected": "'OK'"
+      },
+      {
+        "id": 3,
+        "description": "Throws final error when all retries are exhausted",
+        "input": "retryWithBackoff(() => Promise.reject(new Error('FATAL')), { maxRetries: 2, baseDelayMs: 10 })",
+        "expected": "Error('FATAL')"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Loop from 0 to maxRetries. Catch error, check if attempt === maxRetries, otherwise compute delay." },
+      { "level": 2, "text": "Formula: `Math.min(maxDelayMs, baseDelayMs * (2 ** attempt))`." }
+    ]
+  },
+  {
+    "id": "dev-9",
+    "title": "Circuit Breaker Resilience Pattern",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "SYSTEM_DESIGN",
+    "stack": "javascript",
+    "scenario": "Protect microservices from cascading failures when an external identity provider goes down. Open the circuit breaker after consecutive failures, fast-failing subsequent calls.",
+    "requirements": [
+      "Implement class CircuitBreaker(fn, options).",
+      "options: { failureThreshold: 3, cooldownMs: 1000 }.",
+      "States: CLOSED (normal), OPEN (fast-fail, throw CircuitBreakerOpenError), HALF_OPEN (trial request).",
+      "Transition from CLOSED -> OPEN when consecutive failures reach failureThreshold.",
+      "Transition from OPEN -> HALF_OPEN after cooldownMs elapsed. If trial succeeds -> CLOSED; if fails -> OPEN."
+    ],
+    "starterCode": "class CircuitBreaker {\n  constructor(fn, { failureThreshold = 3, cooldownMs = 1000 } = {}) {\n    this.fn = fn;\n    this.failureThreshold = failureThreshold;\n    this.cooldownMs = cooldownMs;\n    this.state = 'CLOSED'; // 'CLOSED' | 'OPEN' | 'HALF_OPEN'\n    this.failures = 0;\n    this.nextAttempt = Date.now();\n  }\n\n  async fire(...args) {\n    // TODO: Execute fn or fast-fail according to state machine\n  }\n}\n\nmodule.exports = { CircuitBreaker };",
+    "solutionCode": "class CircuitBreaker {\n  constructor(fn, { failureThreshold = 3, cooldownMs = 1000 } = {}) {\n    this.fn = fn;\n    this.failureThreshold = failureThreshold;\n    this.cooldownMs = cooldownMs;\n    this.state = 'CLOSED';\n    this.failures = 0;\n    this.nextAttempt = Date.now();\n  }\n\n  async fire(...args) {\n    if (this.state === 'OPEN') {\n      if (Date.now() >= this.nextAttempt) {\n        this.state = 'HALF_OPEN';\n      } else {\n        throw new Error('Circuit Breaker is OPEN');\n      }\n    }\n\n    try {\n      const result = await this.fn(...args);\n      this.state = 'CLOSED';\n      this.failures = 0;\n      return result;\n    } catch (err) {\n      this.failures++;\n      if (this.state === 'HALF_OPEN' || this.failures >= this.failureThreshold) {\n        this.state = 'OPEN';\n        this.nextAttempt = Date.now() + this.cooldownMs;\n      }\n      throw err;\n    }\n  }\n}\n\nmodule.exports = { CircuitBreaker };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Executes successfully in CLOSED state",
+        "input": "cb = new CircuitBreaker(() => 'OK'); cb.fire();",
+        "expected": "'OK'"
+      },
+      {
+        "id": 2,
+        "description": "Trips to OPEN state after consecutive failures",
+        "input": "cb = new CircuitBreaker(() => { throw new Error('ERR'); }, { failureThreshold: 2 });",
+        "expected": "Throws 'Circuit Breaker is OPEN' on 3rd attempt"
+      },
+      {
+        "id": 3,
+        "description": "Enters HALF_OPEN state after cooldownMs and recovers on success",
+        "input": "Cooldown expires, next call succeeds",
+        "expected": "state reset to CLOSED"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Check if state === 'OPEN' and Date.now() >= nextAttempt; if so, transition to 'HALF_OPEN'." },
+      { "level": 2, "text": "On success, always reset failures = 0 and state = 'CLOSED'." }
+    ]
+  },
+  {
+    "id": "dev-10",
+    "title": "Nested Comment Thread (Flat to Tree Converter)",
+    "difficulty": "Easy",
+    "category": "Dev Practices",
+    "topic": "DATA_PIPELINE",
+    "stack": "javascript",
+    "scenario": "Database returns a flat SQL result of comments with parent_id pointers. Convert this flat list into a hierarchical Reddit/HackerNews-style comment tree in O(N) time.",
+    "requirements": [
+      "Implement flatToTree(comments).",
+      "Each comment has { id, parentId, text }.",
+      "Root comments have parentId === null.",
+      "Each tree node should have a children: [] array containing its direct replies.",
+      "Must run in O(N) time without quadratic nested loops."
+    ],
+    "starterCode": "function flatToTree(comments) {\n  // TODO: Convert flat array of { id, parentId, text } into tree structure\n  return [];\n}\n\nmodule.exports = { flatToTree };",
+    "solutionCode": "function flatToTree(comments) {\n  const roots = [];\n  const map = new Map();\n\n  for (const c of comments) {\n    map.set(c.id, { ...c, children: [] });\n  }\n\n  for (const c of comments) {\n    const node = map.get(c.id);\n    if (c.parentId === null || !map.has(c.parentId)) {\n      roots.push(node);\n    } else {\n      map.get(c.parentId).children.push(node);\n    }\n  }\n\n  return roots;\n}\n\nmodule.exports = { flatToTree };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Convert single root comment with one child",
+        "input": "flatToTree([{ id: 1, parentId: null, text: 'Hi' }, { id: 2, parentId: 1, text: 'Reply' }])",
+        "expected": "[{ id: 1, parentId: null, text: 'Hi', children: [{ id: 2, parentId: 1, text: 'Reply', children: [] }] }]"
+      },
+      {
+        "id": 2,
+        "description": "Multiple root comments",
+        "input": "flatToTree([{ id: 1, parentId: null }, { id: 2, parentId: null }])",
+        "expected": "Array with 2 root nodes"
+      },
+      {
+        "id": 3,
+        "description": "Empty input produces empty array",
+        "input": "flatToTree([])",
+        "expected": "[]"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "First pass: populate a Map from comment.id to a clone with children: []." },
+      { "level": 2, "text": "Second pass: if parentId is null push to roots, else find parent in Map and push to its children array." }
+    ]
+  },
+  {
+    "id": "dev-11",
+    "title": "Concurrent JWT Refresh Queue Manager",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "SECURITY",
+    "stack": "javascript",
+    "scenario": "When a JWT access token expires, multiple parallel UI widget requests trigger simultaneous refresh calls, causing race conditions and revoked session tokens. Implement a request deduplicator queue.",
+    "requirements": [
+      "Implement class TokenRefreshManager(refreshFn).",
+      "getValidToken(): returns active token.",
+      "refreshToken(): triggers token refresh. If a refresh is already in-flight, return the same promise to all callers.",
+      "All waiting callers resolve with the new token once refresh finishes."
+    ],
+    "starterCode": "class TokenRefreshManager {\n  constructor(refreshFn) {\n    this.refreshFn = refreshFn;\n    this.token = null;\n    this.refreshPromise = null;\n  }\n\n  async getValidToken() {\n    // TODO: Return active token or trigger refresh\n  }\n\n  async refreshToken() {\n    // TODO: Deduplicate concurrent refresh calls\n  }\n}\n\nmodule.exports = { TokenRefreshManager };",
+    "solutionCode": "class TokenRefreshManager {\n  constructor(refreshFn) {\n    this.refreshFn = refreshFn;\n    this.token = null;\n    this.refreshPromise = null;\n  }\n\n  async getValidToken() {\n    if (this.token) return this.token;\n    return this.refreshToken();\n  }\n\n  async refreshToken() {\n    if (this.refreshPromise) {\n      return this.refreshPromise;\n    }\n\n    this.refreshPromise = (async () => {\n      try {\n        const newToken = await this.refreshFn();\n        this.token = newToken;\n        return newToken;\n      } finally {\n        this.refreshPromise = null;\n      }\n    })();\n\n    return this.refreshPromise;\n  }\n}\n\nmodule.exports = { TokenRefreshManager };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Returns existing cached token if available",
+        "input": "mgr = new TokenRefreshManager(fn); mgr.token = 'T1'; mgr.getValidToken();",
+        "expected": "'T1'"
+      },
+      {
+        "id": 2,
+        "description": "Deduplicates 3 concurrent refreshToken calls into 1 execution",
+        "input": "Promise.all([mgr.refreshToken(), mgr.refreshToken(), mgr.refreshToken()])",
+        "expected": "refreshFn called exactly 1 time, all 3 resolve to same token"
+      },
+      {
+        "id": 3,
+        "description": "Subsequent refresh after completion triggers fresh call",
+        "input": "await mgr.refreshToken(); await mgr.refreshToken();",
+        "expected": "refreshFn called twice"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Store the ongoing Promise in `this.refreshPromise`. If not null, return it immediately." },
+      { "level": 2, "text": "Use a finally block to reset `this.refreshPromise = null` when the promise completes or fails." }
+    ]
+  },
+  {
+    "id": "dev-12",
+    "title": "High-Performance Memoize with Custom Key & TTL",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "SYSTEM_DESIGN",
+    "stack": "javascript",
+    "scenario": "Expensive SVG chart rendering functions recalculate identical layouts on every window scroll. Build an in-memory memoizer supporting multi-argument hashing and TTL expiration.",
+    "requirements": [
+      "Implement memoize(fn, { keyResolver, ttlMs } = {}).",
+      "keyResolver: custom function (...args) => string. Defaults to JSON.stringify(args).",
+      "ttlMs: optional time-to-live in milliseconds; if expired, recomputes fn.",
+      "Returns a wrapped function with a .cache clear method: wrapped.clearCache()."
+    ],
+    "starterCode": "function memoize(fn, { keyResolver, ttlMs } = {}) {\n  const cache = new Map();\n\n  const memoized = function(...args) {\n    // TODO: Check cache, expiration, and evaluate fn\n  };\n\n  memoized.clearCache = () => cache.clear();\n  return memoized;\n}\n\nmodule.exports = { memoize };",
+    "solutionCode": "function memoize(fn, { keyResolver, ttlMs } = {}) {\n  const cache = new Map();\n  const resolveKey = keyResolver || ((...args) => JSON.stringify(args));\n\n  const memoized = function(...args) {\n    const key = resolveKey(...args);\n    const now = Date.now();\n\n    if (cache.has(key)) {\n      const entry = cache.get(key);\n      if (!ttlMs || now - entry.timestamp < ttlMs) {\n        return entry.value;\n      }\n      cache.delete(key);\n    }\n\n    const value = fn.apply(this, args);\n    cache.set(key, { value, timestamp: now });\n    return value;\n  };\n\n  memoized.clearCache = () => cache.clear();\n  return memoized;\n}\n\nmodule.exports = { memoize };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Caches identical call arguments",
+        "input": "calls = 0; fn = memoize(x => { calls++; return x * 2; }); fn(5); fn(5); calls;",
+        "expected": "1"
+      },
+      {
+        "id": 2,
+        "description": "Differentiates different arguments",
+        "input": "fn(1); fn(2); calls;",
+        "expected": "2"
+      },
+      {
+        "id": 3,
+        "description": "clearCache resets cached values",
+        "input": "fn.clearCache(); fn(5); calls;",
+        "expected": "2 (recomputed)"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Store an object `{ value, timestamp: Date.now() }` in the cache Map." },
+      { "level": 2, "text": "Check if `ttlMs` is defined and `now - entry.timestamp >= ttlMs` to evict stale entries." }
+    ]
+  },
+  {
+    "id": "dev-13",
+    "title": "Middleware Onion Pipeline (Express/Koa Compose)",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "API_DESIGN",
+    "stack": "javascript",
+    "scenario": "Implement Koa and Express-style async middleware execution pipeline where middleware functions wrap each other in an 'onion' model calling await next().",
+    "requirements": [
+      "Implement compose(middlewares).",
+      "middlewares is an array of functions fn(context, next).",
+      "Calling await next() transfers control to the next middleware in chain.",
+      "When downstream completes, control unwinds back through upstream middlewares.",
+      "Calling next() multiple times in the same middleware must reject with an error."
+    ],
+    "starterCode": "function compose(middlewares) {\n  return function(context) {\n    // TODO: Execute middleware array in order with await next()\n    return Promise.resolve();\n  };\n}\n\nmodule.exports = { compose };",
+    "solutionCode": "function compose(middlewares) {\n  return function(context) {\n    let index = -1;\n\n    function dispatch(i) {\n      if (i <= index) return Promise.reject(new Error('next() called multiple times'));\n      index = i;\n      const fn = middlewares[i];\n      if (!fn) return Promise.resolve();\n      try {\n        return Promise.resolve(fn(context, () => dispatch(i + 1)));\n      } catch (err) {\n        return Promise.reject(err);\n      }\n    }\n\n    return dispatch(0);\n  };\n}\n\nmodule.exports = { compose };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Executes middlewares in onion order",
+        "input": "ctx = []; fn = compose([async (c, n) => { c.push(1); await n(); c.push(3); }, async (c, n) => { c.push(2); }]); await fn(ctx); ctx;",
+        "expected": "[1, 2, 3]"
+      },
+      {
+        "id": 2,
+        "description": "Rejects if next() is called twice in same middleware",
+        "input": "compose([async (c, next) => { await next(); await next(); }])({})",
+        "expected": "Throws 'next() called multiple times'"
+      },
+      {
+        "id": 3,
+        "description": "Empty middleware pipeline resolves smoothly",
+        "input": "compose([])({})",
+        "expected": "Promise resolves undefined"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Maintain an `index` pointer to prevent multiple dispatches of the same index." },
+      { "level": 2, "text": "Wrap the invocation in `Promise.resolve(fn(context, () => dispatch(i + 1)))` to handle both async and sync middlewares." }
+    ]
+  },
+  {
+    "id": "dev-14",
+    "title": "Deep Object Equality Checker",
+    "difficulty": "Easy",
+    "category": "Dev Practices",
+    "topic": "DATA_PIPELINE",
+    "stack": "javascript",
+    "scenario": "React components need to prevent unnecessary re-renders without importing the heavyweight lodash.isEqual bundle. Implement a performant deep equality checker.",
+    "requirements": [
+      "Implement deepEqual(a, b).",
+      "Returns true if both inputs are deeply identical, false otherwise.",
+      "Handles primitive values (numbers, strings, booleans, null, undefined, NaN).",
+      "Handles nested objects and arrays of arbitrary depth.",
+      "Handles Date instances by comparing timestamp."
+    ],
+    "starterCode": "function deepEqual(a, b) {\n  // TODO: Check deep equality between a and b\n  return false;\n}\n\nmodule.exports = { deepEqual };",
+    "solutionCode": "function deepEqual(a, b) {\n  if (Object.is(a, b)) return true;\n  if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object') return false;\n\n  if (a instanceof Date && b instanceof Date) {\n    return a.getTime() === b.getTime();\n  }\n\n  if (Array.isArray(a) !== Array.isArray(b)) return false;\n\n  const keysA = Object.keys(a);\n  const keysB = Object.keys(b);\n  if (keysA.length !== keysB.length) return false;\n\n  for (const key of keysA) {\n    if (!Object.prototype.hasOwnProperty.call(b, key)) return false;\n    if (!deepEqual(a[key], b[key])) return false;\n  }\n  return true;\n}\n\nmodule.exports = { deepEqual };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Compares deeply nested objects",
+        "input": "deepEqual({ a: { b: [1, 2] } }, { a: { b: [1, 2] } })",
+        "expected": "true"
+      },
+      {
+        "id": 2,
+        "description": "Detects subtle differences in nested array",
+        "input": "deepEqual({ a: [1, 2] }, { a: [1, 3] })",
+        "expected": "false"
+      },
+      {
+        "id": 3,
+        "description": "Compares NaN correctly (Object.is)",
+        "input": "deepEqual({ val: NaN }, { val: NaN })",
+        "expected": "true"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Use `Object.is(a, b)` first to handle identical references and NaN." },
+      { "level": 2, "text": "Compare `Object.keys(a).length === Object.keys(b).length` before iterating keys." }
+    ]
+  },
+  {
+    "id": "dev-15",
+    "title": "Virtual DOM Object Diff Engine",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "FRONTEND_STATE",
+    "stack": "javascript",
+    "scenario": "Build a lightweight DOM reconciliation engine that compares two virtual DOM node trees and outputs minimal change patches.",
+    "requirements": [
+      "Implement diff(oldNode, newNode).",
+      "Nodes have shape: { type: string, props: {}, children: [] }.",
+      "If newNode is null/undefined, return patch { type: 'REMOVE' }.",
+      "If oldNode.type !== newNode.type, return patch { type: 'REPLACE', node: newNode }.",
+      "If props changed, output patch { type: 'UPDATE_PROPS', props: diffProps }.",
+      "Recursively diff children array and attach child patches."
+    ],
+    "starterCode": "function diff(oldNode, newNode) {\n  // TODO: Compare oldNode and newNode trees and return patch object\n  return null;\n}\n\nmodule.exports = { diff };",
+    "solutionCode": "function diff(oldNode, newNode) {\n  if (!newNode) return { type: 'REMOVE' };\n  if (!oldNode) return { type: 'CREATE', node: newNode };\n  if (oldNode.type !== newNode.type) return { type: 'REPLACE', node: newNode };\n\n  const propPatches = {};\n  const oldProps = oldNode.props || {};\n  const newProps = newNode.props || {};\n\n  for (const [k, v] of Object.entries(newProps)) {\n    if (oldProps[k] !== v) propPatches[k] = v;\n  }\n  for (const k of Object.keys(oldProps)) {\n    if (!(k in newProps)) propPatches[k] = undefined;\n  }\n\n  const childPatches = [];\n  const maxLen = Math.max((oldNode.children || []).length, (newNode.children || []).length);\n  for (let i = 0; i < maxLen; i++) {\n    const patch = diff((oldNode.children || [])[i], (newNode.children || [])[i]);\n    if (patch) childPatches.push({ index: i, patch });\n  }\n\n  return {\n    type: 'UPDATE',\n    props: Object.keys(propPatches).length > 0 ? propPatches : null,\n    children: childPatches\n  };\n}\n\nmodule.exports = { diff };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Detects node type replacement",
+        "input": "diff({ type: 'div', props: {} }, { type: 'span', props: {} })",
+        "expected": "{ type: 'REPLACE', node: { type: 'span', props: {} } }"
+      },
+      {
+        "id": 2,
+        "description": "Detects updated and removed props",
+        "input": "diff({ type: 'div', props: { className: 'btn', id: 'old' } }, { type: 'div', props: { className: 'btn-active' } })",
+        "expected": "props contains className: 'btn-active' and id: undefined"
+      },
+      {
+        "id": 3,
+        "description": "Detects removed child node",
+        "input": "diff({ type: 'ul', children: [{ type: 'li' }] }, { type: 'ul', children: [] })",
+        "expected": "child patch type REMOVE at index 0"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Handle base cases: node missing, node type changed, or both nodes match." },
+      { "level": 2, "text": "Compare keys in newProps against oldProps, setting missing keys to undefined." }
+    ]
+  },
+  {
+    "id": "dev-16",
+    "title": "Query String Parser & Serializer",
+    "difficulty": "Easy",
+    "category": "Dev Practices",
+    "topic": "API_DESIGN",
+    "stack": "javascript",
+    "scenario": "Single-page application search filters need to synchronize with browser URL query strings without loading heavy third-party packages.",
+    "requirements": [
+      "Implement parseQuery(queryString) and stringifyQuery(params).",
+      "parseQuery parses '?a=1&b=hello&c=true' into { a: '1', b: 'hello', c: 'true' }.",
+      "Handles duplicate keys as arrays: '?tag=js&tag=react' -> { tag: ['js', 'react'] }.",
+      "Handles URI component decoding and encoding properly.",
+      "Omits null and undefined values in stringifyQuery."
+    ],
+    "starterCode": "function parseQuery(queryString) {\n  // TODO: Parse URL query string into object\n  return {};\n}\n\nfunction stringifyQuery(params) {\n  // TODO: Serialize params object into query string starting with '?'\n  return '';\n}\n\nmodule.exports = { parseQuery, stringifyQuery };",
+    "solutionCode": "function parseQuery(queryString) {\n  const result = {};\n  if (!queryString) return result;\n  const clean = queryString.startsWith('?') ? queryString.slice(1) : queryString;\n  if (!clean) return result;\n\n  for (const part of clean.split('&')) {\n    if (!part) continue;\n    const [rawKey, rawVal = ''] = part.split('=');\n    const key = decodeURIComponent(rawKey);\n    const val = decodeURIComponent(rawVal);\n\n    if (key in result) {\n      if (Array.isArray(result[key])) {\n        result[key].push(val);\n      } else {\n        result[key] = [result[key], val];\n      }\n    } else {\n      result[key] = val;\n    }\n  }\n  return result;\n}\n\nfunction stringifyQuery(params) {\n  if (!params) return '';\n  const pairs = [];\n  for (const [key, val] of Object.entries(params)) {\n    if (val === null || val === undefined) continue;\n    if (Array.isArray(val)) {\n      for (const item of val) {\n        pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(item)}`);\n      }\n    } else {\n      pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(val)}`);\n    }\n  }\n  return pairs.length > 0 ? `?${pairs.join('&')}` : '';\n}\n\nmodule.exports = { parseQuery, stringifyQuery };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Parse query string with encoded spaces and symbols",
+        "input": "parseQuery('?q=hello%20world&page=2')",
+        "expected": "{ q: 'hello world', page: '2' }"
+      },
+      {
+        "id": 2,
+        "description": "Parse repeated keys into array",
+        "input": "parseQuery('filter=active&filter=pending')",
+        "expected": "{ filter: ['active', 'pending'] }"
+      },
+      {
+        "id": 3,
+        "description": "Stringify object with array and omit null",
+        "input": "stringifyQuery({ tags: ['a', 'b'], empty: null })",
+        "expected": "'?tags=a&tags=b'"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Strip leading '?' if present, then split by '&'." },
+      { "level": 2, "text": "Use `decodeURIComponent` and `encodeURIComponent` on every key and value." }
+    ]
+  },
+  {
+    "id": "dev-17",
+    "title": "Schema Validator & Error Reporter",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "SECURITY",
+    "stack": "javascript",
+    "scenario": "Validate incoming user registration request payloads before hitting database models, returning clear validation error messages.",
+    "requirements": [
+      "Implement validateSchema(payload, schema).",
+      "schema defines rules for keys: { type: 'string'|'number'|'boolean'|'array'|'object', required: boolean, min?: number, max?: number }.",
+      "Returns { valid: boolean, errors: string[] }.",
+      "If a required field is missing or null, report 'Field <key> is required'.",
+      "If type mismatches, report 'Field <key> must be of type <type>'."
+    ],
+    "starterCode": "function validateSchema(payload, schema) {\n  // TODO: Validate payload against schema definitions\n  return { valid: true, errors: [] };\n}\n\nmodule.exports = { validateSchema };",
+    "solutionCode": "function validateSchema(payload, schema) {\n  const errors = [];\n  const data = payload || {};\n\n  for (const [key, rules] of Object.entries(schema)) {\n    const val = data[key];\n    const exists = val !== undefined && val !== null;\n\n    if (rules.required && !exists) {\n      errors.push(`Field ${key} is required`);\n      continue;\n    }\n    if (!exists) continue;\n\n    let actualType = typeof val;\n    if (Array.isArray(val)) actualType = 'array';\n    if (actualType !== rules.type) {\n      errors.push(`Field ${key} must be of type ${rules.type}`);\n      continue;\n    }\n\n    if (rules.type === 'string' && rules.min !== undefined && val.length < rules.min) {\n      errors.push(`Field ${key} must have minimum length ${rules.min}`);\n    }\n    if (rules.type === 'number' && rules.min !== undefined && val < rules.min) {\n      errors.push(`Field ${key} must be at least ${rules.min}`);\n    }\n  }\n\n  return { valid: errors.length === 0, errors };\n}\n\nmodule.exports = { validateSchema };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Valid payload passes with no errors",
+        "input": "validateSchema({ name: 'John', age: 25 }, { name: { type: 'string', required: true }, age: { type: 'number', min: 18 } })",
+        "expected": "{ valid: true, errors: [] }"
+      },
+      {
+        "id": 2,
+        "description": "Missing required field produces error",
+        "input": "validateSchema({}, { email: { type: 'string', required: true } })",
+        "expected": "{ valid: false, errors: ['Field email is required'] }"
+      },
+      {
+        "id": 3,
+        "description": "Type mismatch produces error",
+        "input": "validateSchema({ age: 'twenty' }, { age: { type: 'number' } })",
+        "expected": "{ valid: false, errors: ['Field age must be of type number'] }"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Check required fields first: `val !== undefined && val !== null`." },
+      { "level": 2, "text": "Watch out for `Array.isArray(val)` because `typeof []` is `'object'` in JS." }
+    ]
+  },
+  {
+    "id": "dev-18",
+    "title": "Priority Task Queue with Worker Slots",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "ASYNC_FLOW",
+    "stack": "javascript",
+    "scenario": "A PDF invoice processing service must process high-priority enterprise invoices before lower-priority free tier requests, capped at 3 worker slots.",
+    "requirements": [
+      "Implement class PriorityQueue(concurrency).",
+      "add(taskFn, priority = 0): returns Promise that resolves when taskFn completes. Priority 10 is higher than 1.",
+      "Tasks with higher numeric priority must be executed before lower priority tasks.",
+      "Never run more than concurrency tasks concurrently."
+    ],
+    "starterCode": "class PriorityQueue {\n  constructor(concurrency = 2) {\n    this.concurrency = concurrency;\n    this.running = 0;\n    this.queue = [];\n  }\n\n  add(taskFn, priority = 0) {\n    // TODO: Enqueue task sorted by priority, process when slot available\n  }\n\n  _next() {\n    // TODO: Dequeue highest priority task and execute\n  }\n}\n\nmodule.exports = { PriorityQueue };",
+    "solutionCode": "class PriorityQueue {\n  constructor(concurrency = 2) {\n    this.concurrency = concurrency;\n    this.running = 0;\n    this.queue = [];\n  }\n\n  add(taskFn, priority = 0) {\n    return new Promise((resolve, reject) => {\n      this.queue.push({ taskFn, priority, resolve, reject });\n      this.queue.sort((a, b) => b.priority - a.priority);\n      this._next();\n    });\n  }\n\n  _next() {\n    if (this.running >= this.concurrency || this.queue.length === 0) return;\n    const item = this.queue.shift();\n    this.running++;\n\n    Promise.resolve()\n      .then(() => item.taskFn())\n      .then(item.resolve, item.reject)\n      .finally(() => {\n        this.running--;\n        this._next();\n      });\n  }\n}\n\nmodule.exports = { PriorityQueue };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "High priority task jumps ahead in queue",
+        "input": "pq = new PriorityQueue(1); pq.add(taskA, 1); pq.add(taskB, 1); pq.add(taskC, 10);",
+        "expected": "taskC runs before taskB"
+      },
+      {
+        "id": 2,
+        "description": "Never exceeds concurrency limit",
+        "input": "pq = new PriorityQueue(2); maxConcurrentObserved;",
+        "expected": "2"
+      },
+      {
+        "id": 3,
+        "description": "Propagates task rejections correctly",
+        "input": "pq.add(() => Promise.reject(new Error('FAIL')))",
+        "expected": "Rejection caught"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Sort the queue descending by `priority`: `(a, b) => b.priority - a.priority`." },
+      { "level": 2, "text": "In the `finally` handler of each task, decrement `this.running--` and call `this._next()`." }
+    ]
+  },
+  {
+    "id": "dev-19",
+    "title": "Reactive Observable State Store",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "FRONTEND_STATE",
+    "stack": "javascript",
+    "scenario": "Implement a minimal Redux/Zustand style state container with action dispatching, state subscriptions, and state selector caching.",
+    "requirements": [
+      "Implement createStore(reducer, initialState).",
+      "getState(): returns current state.",
+      "dispatch(action): applies reducer(state, action), updates state, and notifies listeners.",
+      "subscribe(listener): registers listener, returns unsubscribe function.",
+      "select(selectorFn, listener): fires listener only when selectorFn(state) changes."
+    ],
+    "starterCode": "function createStore(reducer, initialState) {\n  let state = initialState;\n  const listeners = new Set();\n\n  // TODO: Implement store methods\n  return {\n    getState: () => state,\n    dispatch: (action) => {},\n    subscribe: (listener) => () => {}\n  };\n}\n\nmodule.exports = { createStore };",
+    "solutionCode": "function createStore(reducer, initialState) {\n  let state = initialState;\n  const listeners = new Set();\n\n  return {\n    getState: () => state,\n    dispatch: (action) => {\n      state = reducer(state, action);\n      listeners.forEach(fn => fn(state));\n      return action;\n    },\n    subscribe: (listener) => {\n      listeners.add(listener);\n      return () => listeners.delete(listener);\n    },\n    select: (selector, listener) => {\n      let currentSlice = selector(state);\n      const unsubscribe = listeners.add((newState) => {\n        const nextSlice = selector(newState);\n        if (nextSlice !== currentSlice) {\n          currentSlice = nextSlice;\n          listener(currentSlice);\n        }\n      });\n      return () => listeners.delete(listener);\n    }\n  };\n}\n\nmodule.exports = { createStore };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Dispatches action and updates state",
+        "input": "store = createStore((s, a) => a.type === 'INC' ? s + 1 : s, 0); store.dispatch({ type: 'INC' }); store.getState();",
+        "expected": "1"
+      },
+      {
+        "id": 2,
+        "description": "Subscribed listener receives notification on dispatch",
+        "input": "called = false; store.subscribe(() => called = true); store.dispatch({ type: 'INC' });",
+        "expected": "called === true"
+      },
+      {
+        "id": 3,
+        "description": "Unsubscribe stops notifications",
+        "input": "unsub = store.subscribe(fn); unsub(); store.dispatch({ type: 'INC' });",
+        "expected": "fn not called"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Keep `listeners` in a Set and notify all listeners on each dispatch." },
+      { "level": 2, "text": "For `select`, compare `nextSlice !== currentSlice` before invoking the callback." }
+    ]
+  },
+  {
+    "id": "dev-20",
+    "title": "Batch Request Debouncer (DataLoader Pattern)",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "SYSTEM_DESIGN",
+    "stack": "javascript",
+    "scenario": "GraphQL resolvers request user profiles by ID individually, causing the N+1 database query problem. Implement a batch coalescer that aggregates individual requests within the same tick into a single batch database query.",
+    "requirements": [
+      "Implement class BatchDataLoader(batchFn).",
+      "load(key): returns a Promise that resolves with the value for that key.",
+      "Collects all load(key) calls made in the same event-loop microtask tick.",
+      "Calls batchFn(keys) once with unique keys, then resolves each individual Promise with its corresponding value."
+    ],
+    "starterCode": "class BatchDataLoader {\n  constructor(batchFn) {\n    this.batchFn = batchFn;\n    this.queue = [];\n    this.scheduled = false;\n  }\n\n  load(key) {\n    // TODO: Queue key request and schedule batch execution on next tick\n  }\n\n  _flush() {\n    // TODO: Execute batchFn with queued keys and resolve respective promises\n  }\n}\n\nmodule.exports = { BatchDataLoader };",
+    "solutionCode": "class BatchDataLoader {\n  constructor(batchFn) {\n    this.batchFn = batchFn;\n    this.queue = [];\n    this.scheduled = false;\n  }\n\n  load(key) {\n    return new Promise((resolve, reject) => {\n      this.queue.push({ key, resolve, reject });\n      if (!this.scheduled) {\n        this.scheduled = true;\n        Promise.resolve().then(() => this._flush());\n      }\n    });\n  }\n\n  async _flush() {\n    const currentBatch = this.queue;\n    this.queue = [];\n    this.scheduled = false;\n\n    const keys = currentBatch.map(item => item.key);\n    try {\n      const results = await this.batchFn(keys);\n      currentBatch.forEach((item, idx) => {\n        item.resolve(results[idx]);\n      });\n    } catch (err) {\n      currentBatch.forEach(item => item.reject(err));\n    }\n  }\n}\n\nmodule.exports = { BatchDataLoader };",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Coalesces 3 concurrent load() calls into 1 batch call",
+        "input": "batchCalls = 0; loader = new BatchDataLoader(async keys => { batchCalls++; return keys.map(k => 'user_' + k); }); Promise.all([loader.load(1), loader.load(2), loader.load(3)]);",
+        "expected": "['user_1', 'user_2', 'user_3'] with batchCalls === 1"
+      },
+      {
+        "id": 2,
+        "description": "Resolves correct corresponding value for each key",
+        "input": "loader.load('A')",
+        "expected": "'user_A'"
+      },
+      {
+        "id": 3,
+        "description": "Propagates batch failure to all waiting callers",
+        "input": "failingLoader = new BatchDataLoader(() => Promise.reject(new Error('DB_DOWN'))); failingLoader.load(1);",
+        "expected": "Throws 'DB_DOWN'"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Use `Promise.resolve().then(() => this._flush())` to schedule the batch flush on the microtask queue." },
+      { "level": 2, "text": "Drain `this.queue` into a local batch array inside `_flush()` and reset `this.scheduled = false`." }
+    ]
+  }
+]

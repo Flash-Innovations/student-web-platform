@@ -1,5 +1,5 @@
-import React, { useState, useEffect, Suspense, lazy } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo, Suspense, lazy } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Database,
   Play,
@@ -12,12 +12,14 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
-  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
   Lightbulb,
   Check,
   Copy,
   Layers,
-  HelpCircle,
+  Search,
+  Filter,
   Bot
 } from "lucide-react";
 import { Card } from "../../components/common/Card";
@@ -26,52 +28,58 @@ import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { codingPracticeAiService } from "../../services/codingPracticeAiService";
 import { useScreenContext } from "../../context/ScreenContext";
+import sqlQuestions from "../../data/sqlQuestions.json";
 
 // Lazy-load Monaco Editor
 const CodeEditor = lazy(() => import("../../components/common/CodeEditor").then(m => ({ default: m.CodeEditor })));
 
 export function SqlArenaPage() {
   const navigate = useNavigate();
+  const { questionId } = useParams();
   const { setScreenContext, openAssistantWithQuery } = useScreenContext();
 
-  const [question, setQuestion] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
+  // Find initial question index
+  const initialIndex = useMemo(() => {
+    if (!questionId) return 0;
+    const foundIdx = sqlQuestions.findIndex(q => q.id === questionId);
+    return foundIdx !== -1 ? foundIdx : 0;
+  }, [questionId]);
+
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [activeTableIndex, setActiveTableIndex] = useState(0);
-  const [userQuery, setUserQuery] = useState("");
+  const [userQuery, setUserQuery] = useState(() => sqlQuestions[initialIndex]?.starterQuery || "SELECT ");
   const [evaluating, setEvaluating] = useState(false);
   const [evalResult, setEvalResult] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [expandedHints, setExpandedHints] = useState({});
 
-  // Generate Modal state
-  const [showGenModal, setShowGenModal] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState("JOINS");
-  const [selectedDifficulty, setSelectedDifficulty] = useState("Medium");
+  // Question Browser Modal state
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [bankSearch, setBankSearch] = useState("");
+  const [bankTopicFilter, setBankTopicFilter] = useState("ALL");
+  const [bankDiffFilter, setBankDiffFilter] = useState("ALL");
 
-  const loadQuestion = async (topic = "JOINS", diff = "Medium") => {
-    setLoading(true);
-    setEvalResult(null);
-    try {
-      const q = await codingPracticeAiService.generateSqlQuestion({ topic, difficulty: diff });
-      setQuestion(q);
-      setUserQuery(q.starterQuery || "SELECT ");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const question = sqlQuestions[currentIndex] || sqlQuestions[0];
 
+  // Sync index if URL parameter changes
   useEffect(() => {
-    loadQuestion();
-  }, []);
+    if (questionId) {
+      const idx = sqlQuestions.findIndex(q => q.id === questionId);
+      if (idx !== -1 && idx !== currentIndex) {
+        setCurrentIndex(idx);
+        setUserQuery(sqlQuestions[idx].starterQuery || "SELECT ");
+        setEvalResult(null);
+        setActiveTableIndex(0);
+        setExpandedHints({});
+      }
+    }
+  }, [questionId]);
 
   // Sync with AI Assistant Screen Context
   useEffect(() => {
     if (question) {
       setScreenContext({
-        contextType: "PRACTICE_MCQ", // Or CODING_ARENA
+        contextType: "CODING_ARENA",
         data: {
           problemTitle: question.title,
           category: "SQL Practice",
@@ -84,6 +92,18 @@ export function SqlArenaPage() {
       });
     }
   }, [question, userQuery, setScreenContext]);
+
+  const selectQuestion = (index) => {
+    if (index < 0 || index >= sqlQuestions.length) return;
+    setCurrentIndex(index);
+    const q = sqlQuestions[index];
+    setUserQuery(q.starterQuery || "SELECT ");
+    setEvalResult(null);
+    setActiveTableIndex(0);
+    setExpandedHints({});
+    setShowBankModal(false);
+    navigate(`/student/practice/sql/${q.id}`, { replace: true });
+  };
 
   const handleRunQuery = async () => {
     if (!userQuery.trim() || !question) return;
@@ -102,13 +122,10 @@ export function SqlArenaPage() {
     }
   };
 
-  const handleGenerateFresh = async () => {
-    setShowGenModal(false);
-    setGenerating(true);
-    try {
-      await loadQuestion(selectedTopic, selectedDifficulty);
-    } finally {
-      setGenerating(false);
+  const resetQuery = () => {
+    if (question?.starterQuery) {
+      setUserQuery(question.starterQuery);
+      setEvalResult(null);
     }
   };
 
@@ -124,17 +141,24 @@ export function SqlArenaPage() {
     setExpandedHints(prev => ({ ...prev, [idx]: !prev[idx] }));
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
-        <h3 className="font-bold text-slate-800 text-base">Synthesizing SQL Schema with AI...</h3>
-        <p className="text-xs text-slate-500 max-w-sm text-center">
-          Building production database tables, generating seed records, and verifying test datasets.
-        </p>
-      </div>
-    );
-  }
+  // Filtered questions for bank browser
+  const filteredQuestions = useMemo(() => {
+    return sqlQuestions.filter(q => {
+      const matchSearch =
+        !bankSearch.trim() ||
+        q.title.toLowerCase().includes(bankSearch.toLowerCase()) ||
+        q.scenario.toLowerCase().includes(bankSearch.toLowerCase()) ||
+        q.topic.toLowerCase().includes(bankSearch.toLowerCase());
+      const matchTopic = bankTopicFilter === "ALL" || q.topic === bankTopicFilter;
+      const matchDiff = bankDiffFilter === "ALL" || q.difficulty === bankDiffFilter;
+      return matchSearch && matchTopic && matchDiff;
+    });
+  }, [bankSearch, bankTopicFilter, bankDiffFilter]);
+
+  const allTopics = useMemo(() => {
+    const set = new Set(sqlQuestions.map(q => q.topic).filter(Boolean));
+    return ["ALL", ...Array.from(set)];
+  }, []);
 
   const activeTable = question?.tables?.[activeTableIndex] || null;
 
@@ -142,7 +166,7 @@ export function SqlArenaPage() {
     <div className="space-y-4 max-w-7xl mx-auto pb-10">
       {/* Top Navigation & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Button
             variant="ghost"
             size="xs"
@@ -151,33 +175,66 @@ export function SqlArenaPage() {
           >
             Practice Hub
           </Button>
+
           <div className="flex items-center gap-2">
             <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
               <Database className="w-4 h-4" />
             </span>
             <div>
-              <h2 className="font-extrabold text-slate-900 text-base tracking-tight flex items-center gap-2">
-                {question?.title || "SQL Practice Challenge"}
-                <Badge variant={question?.difficulty === "Hard" ? "danger" : question?.difficulty === "Medium" ? "warning" : "success"} size="xs">
-                  {question?.difficulty || "Medium"}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-400">
+                  Question {currentIndex + 1} of {sqlQuestions.length}
+                </span>
+                <h2 className="font-extrabold text-slate-900 text-base tracking-tight">
+                  {question.title}
+                </h2>
+                <Badge
+                  variant={question.difficulty === "Hard" ? "danger" : question.difficulty === "Medium" ? "warning" : "success"}
+                  size="xs"
+                >
+                  {question.difficulty}
                 </Badge>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  {question?.topic || "JOINS"}
+                  {question.topic}
                 </span>
-              </h2>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Right Action Buttons */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Prev / Next Steppers */}
+          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <button
+              onClick={() => selectQuestion(currentIndex - 1)}
+              disabled={currentIndex === 0}
+              title="Previous question"
+              className="p-1.5 rounded-md hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent text-slate-600 cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-bold px-1.5 text-slate-700">
+              {currentIndex + 1} / {sqlQuestions.length}
+            </span>
+            <button
+              onClick={() => selectQuestion(currentIndex + 1)}
+              disabled={currentIndex === sqlQuestions.length - 1}
+              title="Next question"
+              className="p-1.5 rounded-md hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent text-slate-600 cursor-pointer"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Browse Question Bank Modal Trigger */}
           <Button
             variant="outline"
             size="sm"
-            icon={Sparkles}
-            loading={generating}
-            onClick={() => setShowGenModal(true)}
+            icon={Layers}
+            onClick={() => setShowBankModal(true)}
           >
-            Generate Fresh (AI)
+            Question Bank (20)
           </Button>
 
           <Button
@@ -186,7 +243,7 @@ export function SqlArenaPage() {
             icon={Bot}
             onClick={() =>
               openAssistantWithQuery(
-                `I am solving the SQL challenge: ${question?.title}. Give me progressive hints on how to join or query the schema tables without spoiling the solution.`,
+                `I am solving the SQL challenge: "${question.title}" (${question.topic}). Scenario: ${question.scenario}. Give me progressive hints on how to join or query the tables without giving away the full solution.`,
                 "HINT"
               )
             }
@@ -201,19 +258,19 @@ export function SqlArenaPage() {
         {/* Left Column: Problem & Table Visualizer */}
         <div className="lg:col-span-5 space-y-4">
           {/* Scenario & Requirements */}
-          <Card className="p-4 border-slate-200 shadow-sm space-y-3">
+          <Card className="p-4 border-slate-200 shadow-2xs space-y-3">
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
               <TableProperties className="w-4 h-4 text-indigo-600" />
               Recruiter Problem Scenario
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              {question?.scenario}
+              {question.scenario}
             </p>
 
             <div className="pt-2 border-t border-slate-100">
               <h4 className="font-semibold text-slate-800 text-xs mb-1.5">Requirements:</h4>
               <ul className="space-y-1">
-                {question?.requirements?.map((req, rIdx) => (
+                {question.requirements?.map((req, rIdx) => (
                   <li key={rIdx} className="text-xs text-slate-600 flex items-start gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
                     <span>{req}</span>
@@ -224,23 +281,23 @@ export function SqlArenaPage() {
           </Card>
 
           {/* Database Schema & Tables Visualizer */}
-          <Card className="p-4 border-slate-200 shadow-sm space-y-3">
+          <Card className="p-4 border-slate-200 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wide flex items-center gap-1.5">
                 <Database className="w-3.5 h-3.5 text-indigo-600" />
-                Live Schema Visualizer ({question?.tables?.length || 0} Tables)
+                Live Schema Visualizer ({question.tables?.length || 0} Tables)
               </h3>
             </div>
 
             {/* Table Tabs */}
             <div className="flex items-center gap-1 border-b border-slate-100 pb-2 overflow-x-auto">
-              {question?.tables?.map((table, tIdx) => (
+              {question.tables?.map((table, tIdx) => (
                 <button
                   key={tIdx}
                   onClick={() => setActiveTableIndex(tIdx)}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                     activeTableIndex === tIdx
-                      ? "bg-indigo-600 text-white shadow-sm"
+                      ? "bg-indigo-600 text-white shadow-xs"
                       : "text-slate-600 hover:bg-slate-100"
                   }`}
                 >
@@ -249,179 +306,31 @@ export function SqlArenaPage() {
               ))}
             </div>
 
-            {/* Active Table Data Grid */}
+            {/* Active Table Viewer */}
             {activeTable && (
-              <div className="overflow-x-auto rounded-lg border border-slate-200 text-xs">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold text-[11px]">
-                      {activeTable.columns.map((col, cIdx) => (
-                        <th key={cIdx} className="p-2 border-r border-slate-200 last:border-r-0">
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeTable.rows.map((row, rIdx) => (
-                      <tr key={rIdx} className="border-b border-slate-100 hover:bg-slate-50/60 transition-colors text-slate-600">
-                        {row.map((val, vIdx) => (
-                          <td key={vIdx} className="p-2 border-r border-slate-100 last:border-r-0 font-mono text-[11px]">
-                            {val === null ? <span className="text-slate-300 italic">NULL</span> : String(val)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+              <div className="space-y-2">
+                <div className="text-[11px] font-semibold text-slate-500 flex items-center justify-between">
+                  <span>Table: <strong className="text-slate-800">{activeTable.name}</strong></span>
+                  <span>{activeTable.rows?.length || 0} sample rows</span>
+                </div>
 
-          {/* Progressive Hints Accordion */}
-          {question?.hints?.length > 0 && (
-            <Card className="p-3 border-slate-200 shadow-sm space-y-2">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
-                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                Socratic Hints
-              </span>
-              {question.hints.map((hint, hIdx) => {
-                const isExp = expandedHints[hIdx] !== false;
-                return (
-                  <div key={hIdx} className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50/50 text-xs">
-                    <button
-                      onClick={() => toggleHint(hIdx)}
-                      className="w-full px-2.5 py-1.5 flex items-center justify-between text-left font-medium text-slate-700 hover:bg-slate-100"
-                    >
-                      <span>Hint #{hint.level || hIdx + 1}</span>
-                      {isExp ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
-                    </button>
-                    {isExp && (
-                      <div className="px-2.5 py-2 text-slate-600 bg-white border-t border-slate-100 leading-relaxed text-[11px]">
-                        {hint.text}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </Card>
-          )}
-        </div>
-
-        {/* Right Column: Code Editor & Execution Results */}
-        <div className="lg:col-span-7 space-y-4">
-          <Card className="border-slate-200 shadow-sm overflow-hidden flex flex-col">
-            {/* Editor Top Bar */}
-            <div className="px-4 py-2.5 bg-slate-900 text-white flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                <span className="font-mono text-slate-300 font-semibold">PostgreSQL / ANSI SQL</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={copyStarter}
-                  className="text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
-                >
-                  {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedCode ? "Copied" : "Copy Template"}</span>
-                </button>
-                <button
-                  onClick={() => setUserQuery(question?.starterQuery || "SELECT ")}
-                  className="text-slate-400 hover:text-white flex items-center gap-1 transition-colors ml-2"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
-              </div>
-            </div>
-
-            {/* SQL Code Editor */}
-            <div className="h-[280px] bg-slate-950 font-mono text-xs">
-              <Suspense
-                fallback={
-                  <div className="h-full flex items-center justify-center text-slate-400 text-xs">
-                    Loading Monaco Engine...
-                  </div>
-                }
-              >
-                <CodeEditor
-                  language="sql"
-                  value={userQuery}
-                  onChange={(val) => setUserQuery(val || "")}
-                />
-              </Suspense>
-            </div>
-
-            {/* Run Button Bar */}
-            <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-              <span className="text-xs text-slate-500">
-                Hit Run Query to test against relational schema fixtures.
-              </span>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={Play}
-                loading={evaluating}
-                onClick={handleRunQuery}
-              >
-                Run SQL Query
-              </Button>
-            </div>
-          </Card>
-
-          {/* Results Console */}
-          <Card className="p-4 border-slate-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wide">
-                Evaluation Output & Expected Grid
-              </h3>
-              {evalResult && (
-                <Badge variant={evalResult.passed ? "success" : "danger"} size="xs">
-                  {evalResult.status || (evalResult.passed ? "ACCEPTED" : "FAILED")}
-                </Badge>
-              )}
-            </div>
-
-            {evalResult && (
-              <div
-                className={`p-3 rounded-lg text-xs flex items-center gap-2 ${
-                  evalResult.passed
-                    ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
-                    : "bg-rose-50 border border-rose-200 text-rose-800"
-                }`}
-              >
-                {evalResult.passed ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                )}
-                <span>{evalResult.message || (evalResult.passed ? "Query output matches schema criteria!" : "Syntax error or incorrect columns returned.")}</span>
-              </div>
-            )}
-
-            {/* Expected Output Grid */}
-            {question?.expectedOutput && (
-              <div className="space-y-1.5">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">
-                  Expected Output Table
-                </span>
-                <div className="overflow-x-auto rounded-lg border border-slate-200 text-xs">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold text-[11px]">
-                        {question.expectedOutput.columns.map((col, idx) => (
-                          <th key={idx} className="p-2 border-r border-slate-200 last:border-r-0">
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                  <table className="w-full text-left text-xs text-slate-700">
+                    <thead className="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase border-b border-slate-200">
+                      <tr>
+                        {activeTable.columns?.map((col, cIdx) => (
+                          <th key={cIdx} className="px-3 py-2 border-r border-slate-200 last:border-r-0">
                             {col}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody>
-                      {question.expectedOutput.rows.map((row, rIdx) => (
-                        <tr key={rIdx} className="border-b border-slate-100 hover:bg-slate-50 font-mono text-[11px]">
-                          {row.map((val, vIdx) => (
-                            <td key={vIdx} className="p-2 border-r border-slate-100 last:border-r-0">
-                              {String(val)}
+                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                      {activeTable.rows?.map((row, rIdx) => (
+                        <tr key={rIdx} className="hover:bg-slate-50/80 transition-colors">
+                          {row.map((cell, cellIdx) => (
+                            <td key={cellIdx} className="px-3 py-1.5 border-r border-slate-100 last:border-r-0 whitespace-nowrap">
+                              {cell !== null && cell !== undefined ? String(cell) : <span className="text-slate-400 italic">null</span>}
                             </td>
                           ))}
                         </tr>
@@ -432,57 +341,289 @@ export function SqlArenaPage() {
               </div>
             )}
           </Card>
+
+          {/* Progressive Hints */}
+          {question.hints && question.hints.length > 0 && (
+            <Card className="p-4 border-slate-200 shadow-2xs space-y-2">
+              <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                Progressive Socratic Hints
+              </h3>
+
+              <div className="space-y-1.5">
+                {question.hints.map((hint, hIdx) => {
+                  const isExp = !!expandedHints[hIdx];
+                  return (
+                    <div key={hIdx} className="border border-slate-200 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => toggleHint(hIdx)}
+                        className="w-full px-3 py-2 bg-slate-50 hover:bg-slate-100 text-left text-xs font-semibold text-slate-700 flex items-center justify-between cursor-pointer"
+                      >
+                        <span>Hint {hIdx + 1}</span>
+                        {isExp ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
+                      </button>
+                      {isExp && (
+                        <div className="p-3 bg-white text-xs text-slate-600 border-t border-slate-200">
+                          {hint.text}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Right Column: Code Editor & Query Console */}
+        <div className="lg:col-span-7 space-y-4">
+          <Card className="border-slate-200 shadow-2xs overflow-hidden">
+            {/* Editor Toolbar */}
+            <div className="bg-slate-900 px-4 py-2.5 flex items-center justify-between text-white border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-semibold text-indigo-400">query.sql</span>
+                <span className="text-[10px] text-slate-400">PostgreSQL / MySQL Dialect</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  icon={copiedCode ? Check : Copy}
+                  onClick={copyStarter}
+                  className="text-slate-300 hover:text-white hover:bg-slate-800"
+                >
+                  {copiedCode ? "Copied" : "Copy Starter"}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  icon={RotateCcw}
+                  onClick={resetQuery}
+                  className="text-slate-300 hover:text-white hover:bg-slate-800"
+                >
+                  Reset
+                </Button>
+
+                <Button
+                  variant="primary"
+                  size="xs"
+                  icon={Play}
+                  loading={evaluating}
+                  onClick={handleRunQuery}
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-sm"
+                >
+                  Execute Query
+                </Button>
+              </div>
+            </div>
+
+            {/* Monaco SQL Editor */}
+            <div className="h-[360px] bg-slate-950">
+              <Suspense
+                fallback={
+                  <div className="h-full flex items-center justify-center text-slate-500 text-xs font-mono">
+                    Loading SQL Code Studio...
+                  </div>
+                }
+              >
+                <CodeEditor
+                  value={userQuery}
+                  onChange={(val) => setUserQuery(val || "")}
+                  language="sql"
+                  theme="vs-dark"
+                  height="100%"
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    lineNumbers: "on",
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    wordWrap: "on"
+                  }}
+                />
+              </Suspense>
+            </div>
+          </Card>
+
+          {/* Results Console */}
+          <Card className="p-4 border-slate-200 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wide flex items-center gap-1.5">
+                <Play className="w-3.5 h-3.5 text-indigo-600" />
+                Query Execution Console
+              </h3>
+              {evalResult && (
+                <Badge variant={evalResult.passed ? "success" : "danger"} size="xs">
+                  {evalResult.passed ? "QUERY PASSED" : "TEST FAILED"}
+                </Badge>
+              )}
+            </div>
+
+            {evalResult ? (
+              <div className="space-y-3">
+                <div
+                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                    evalResult.passed
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                      : "bg-rose-50 text-rose-800 border-rose-200"
+                  }`}
+                >
+                  {evalResult.passed ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <strong className="block font-bold">
+                      {evalResult.passed ? "All Test Assertions Passed" : "Query Execution Mismatch"}
+                    </strong>
+                    <span className="text-[11px] leading-relaxed block mt-0.5">
+                      {evalResult.message || (evalResult.passed ? "Returned dataset matches expected output." : "Query results differed from expected solution dataset.")}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Expected Output Table Preview */}
+                {question.expectedOutput && (
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-semibold text-slate-600">Expected Result Set:</span>
+                    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                      <table className="w-full text-left text-xs text-slate-700">
+                        <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                          <tr>
+                            {question.expectedOutput.columns?.map((col, idx) => (
+                              <th key={idx} className="px-3 py-1.5 border-r border-slate-200 last:border-r-0">
+                                {col}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                          {question.expectedOutput.rows?.map((row, rIdx) => (
+                            <tr key={rIdx}>
+                              {row.map((cell, cIdx) => (
+                                <td key={cIdx} className="px-3 py-1.5 border-r border-slate-100 last:border-r-0">
+                                  {cell !== null && cell !== undefined ? String(cell) : "null"}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-6 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">
+                Run query to compile SQL against schema tables and inspect diff output.
+              </div>
+            )}
+          </Card>
         </div>
       </div>
 
-      {/* Generate Custom Challenge Modal */}
-      {showGenModal && (
-        <Modal
-          isOpen={showGenModal}
-          onClose={() => setShowGenModal(false)}
-          title="Generate Custom SQL Challenge (AI)"
-          subtitle="Generate tailored schema problems with Gemini Flash multi-key engine"
-          maxWidth="max-w-md"
-        >
-          <div className="space-y-4 text-xs">
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Target Topic:</label>
-              <select
-                value={selectedTopic}
-                onChange={(e) => setSelectedTopic(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 text-slate-800"
-              >
-                <option value="JOINS">Multi-Table JOINS (Inner, Left, Right)</option>
-                <option value="AGGREGATIONS">GROUP BY, HAVING & Aggregations</option>
-                <option value="WINDOW_FUNCTIONS">Window Functions (DENSE_RANK, ROW_NUMBER)</option>
-                <option value="SUBQUERIES_CTES">CTEs & Subqueries</option>
-              </select>
+      {/* Question Bank Browser Modal */}
+      <Modal
+        isOpen={showBankModal}
+        onClose={() => setShowBankModal(false)}
+        title="SQL Practice Question Bank (20 Problems)"
+        size="lg"
+      >
+        <div className="space-y-4">
+          {/* Search & Topic Filters */}
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={bankSearch}
+                onChange={(e) => setBankSearch(e.target.value)}
+                placeholder="Search SQL problems by title, topic, or scenario..."
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
             </div>
 
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Difficulty:</label>
-              <select
-                value={selectedDifficulty}
-                onChange={(e) => setSelectedDifficulty(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 text-slate-800"
-              >
-                <option value="Easy">Easy (Single Table / Basic Join)</option>
-                <option value="Medium">Medium (Campus Recruiter Standard)</option>
-                <option value="Hard">Hard (Tier-1 FinTech / High Complexity)</option>
-              </select>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowGenModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" size="sm" icon={Sparkles} onClick={handleGenerateFresh}>
-                Generate Challenge
-              </Button>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              <span className="text-[11px] font-bold text-slate-400 mr-1 flex items-center gap-1">
+                <Filter className="w-3 h-3" /> Topic:
+              </span>
+              {allTopics.map(t => (
+                <button
+                  key={t}
+                  onClick={() => setBankTopicFilter(t)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    bankTopicFilter === t
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
             </div>
           </div>
-        </Modal>
-      )}
+
+          {/* Question List */}
+          <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1 divide-y divide-slate-100">
+            {filteredQuestions.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                No SQL problems match your current search and filter criteria.
+              </div>
+            ) : (
+              filteredQuestions.map((q) => {
+                const originalIndex = sqlQuestions.findIndex(x => x.id === q.id);
+                const isActive = originalIndex === currentIndex;
+
+                return (
+                  <div
+                    key={q.id}
+                    onClick={() => selectQuestion(originalIndex)}
+                    className={`pt-2 pb-2 px-3 rounded-xl transition-all flex items-center justify-between cursor-pointer group ${
+                      isActive
+                        ? "bg-indigo-50/80 border border-indigo-200"
+                        : "hover:bg-slate-50 border border-transparent"
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-mono font-bold text-slate-400">
+                          #{originalIndex + 1}
+                        </span>
+                        <h4 className={`text-xs font-bold transition-colors ${isActive ? "text-indigo-700" : "text-slate-900 group-hover:text-indigo-600"}`}>
+                          {q.title}
+                        </h4>
+                        {isActive && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-indigo-600 text-white">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 line-clamp-1 max-w-md">
+                        {q.scenario}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                        {q.topic}
+                      </span>
+                      <Badge
+                        variant={q.difficulty === "Hard" ? "danger" : q.difficulty === "Medium" ? "warning" : "success"}
+                        size="xs"
+                      >
+                        {q.difficulty}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

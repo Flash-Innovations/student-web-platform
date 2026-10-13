@@ -857,15 +857,15 @@ export function PracticeHubPage() {
                 <Code2 className="absolute -right-4 -bottom-4 w-32 h-32 text-white/5 pointer-events-none" />
               </Card>
 
-              {/* Pillar 2: SQL Practice (AI Generated) */}
+              {/* Pillar 2: SQL Practice (Curated Bank) */}
               <Card className="p-5 border-slate-200 bg-linear-to-br from-slate-900 via-purple-950 to-slate-900 text-white shadow-sm flex flex-col justify-between group hover:border-purple-400 transition-all relative overflow-hidden">
                 <div className="space-y-3 relative z-10">
                   <div className="flex items-center justify-between">
                     <span className="p-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-400/30">
                       <Database className="w-4 h-4" />
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
-                      <Sparkles className="w-2.5 h-2.5" /> AI Generated
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30 flex items-center gap-1">
+                      20 Curated Problems
                     </span>
                   </div>
 
@@ -874,7 +874,7 @@ export function PracticeHubPage() {
                       2. SQL Practice
                     </h3>
                     <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                      Synthesize live database schemas on demand, inspect interactive tables, and write production queries.
+                      20 top interview database schemas, inspect interactive tables, and write production queries with instant 0ms load.
                     </p>
                   </div>
 
@@ -900,15 +900,15 @@ export function PracticeHubPage() {
                 <Database className="absolute -right-4 -bottom-4 w-32 h-32 text-white/5 pointer-events-none" />
               </Card>
 
-              {/* Pillar 3: Dev Practices (AI Generated) */}
+              {/* Pillar 3: Dev Practices (Curated Bank) */}
               <Card className="p-5 border-slate-200 bg-linear-to-br from-slate-900 via-emerald-950 to-slate-900 text-white shadow-sm flex flex-col justify-between group hover:border-emerald-400 transition-all relative overflow-hidden">
                 <div className="space-y-3 relative z-10">
                   <div className="flex items-center justify-between">
                     <span className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
                       <Terminal className="w-4 h-4" />
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
-                      <Sparkles className="w-2.5 h-2.5" /> AI Generated
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
+                      20 Curated Tasks
                     </span>
                   </div>
 
@@ -917,7 +917,7 @@ export function PracticeHubPage() {
                       3. Dev Practices
                     </h3>
                     <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                      Real-world developer tasks: rate limiting, async worker pools, and cache logic with automated unit tests.
+                      20 real-world engineering tasks: rate limiting, async worker pools, and cache logic with automated unit assertions.
                     </p>
                   </div>
 
