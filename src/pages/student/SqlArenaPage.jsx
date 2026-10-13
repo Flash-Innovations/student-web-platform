@@ -19,8 +19,7 @@ import {
   Copy,
   Layers,
   Search,
-  Filter,
-  Bot
+  Filter
 } from "lucide-react";
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
@@ -37,7 +36,7 @@ const CodeEditor = lazy(() => import("../../components/common/CodeEditor").then(
 export function SqlArenaPage() {
   const navigate = useNavigate();
   const { questionId } = useParams();
-  const { setScreenContext, openAssistantWithQuery } = useScreenContext();
+  const { setScreenContext } = useScreenContext();
 
   const [questions, setQuestions] = useState(() => practiceService.getCachedSqlQuestions() || sqlQuestionsFallback);
 
@@ -187,9 +186,9 @@ export function SqlArenaPage() {
             variant="ghost"
             size="xs"
             icon={ArrowLeft}
-            onClick={() => navigate("/student/practice")}
+            onClick={() => navigate("/student/practice/sql")}
           >
-            Practice Hub
+            All SQL Challenges
           </Button>
 
           <div className="flex items-center gap-2">
@@ -251,20 +250,6 @@ export function SqlArenaPage() {
             onClick={() => setShowBankModal(true)}
           >
             Question Bank ({questions.length})
-          </Button>
-
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Bot}
-            onClick={() =>
-              openAssistantWithQuery(
-                `I am solving the SQL challenge: "${question.title}" (${question.topic}). Scenario: ${question.scenario}. Give me progressive hints on how to join or query the tables without giving away the full solution.`,
-                "HINT"
-              )
-            }
-          >
-            Ask AI Assistant
           </Button>
         </div>
       </div>

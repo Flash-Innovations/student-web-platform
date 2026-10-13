@@ -829,5 +829,362 @@
       { "level": 1, "text": "Use `Promise.resolve().then(() => this._flush())` to schedule the batch flush on the microtask queue." },
       { "level": 2, "text": "Drain `this.queue` into a local batch array inside `_flush()` and reset `this.scheduled = false`." }
     ]
+  },
+  {
+    "id": "dev-21",
+    "title": "Spring Boot Request Correlation ID Filter (MDC Logging)",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "MIDDLEWARE",
+    "stack": "springboot",
+    "scenario": "In a microservices ecosystem, tracing requests across service boundaries requires a correlation ID. Implement a Spring Boot OncePerRequestFilter that inspects the incoming X-Correlation-Id header (or generates a UUID if absent), populates SLF4J MDC, sets the response header, and cleans up MDC on request completion.",
+    "requirements": [
+      "Implement CorrelationIdFilter extending OncePerRequestFilter.",
+      "Extract 'X-Correlation-Id' header from HttpServletRequest. If missing or blank, generate UUID.randomUUID().toString().",
+      "Put the ID into MDC under key 'correlationId'.",
+      "Add the ID to HttpServletResponse header 'X-Correlation-Id'.",
+      "Invoke filterChain.doFilter(request, response) and remove MDC key in a finally block to prevent thread pool leakage."
+    ],
+    "starterCode": "package com.example.middleware;\n\nimport jakarta.servlet.FilterChain;\nimport jakarta.servlet.ServletException;\nimport jakarta.servlet.http.HttpServletRequest;\nimport jakarta.servlet.http.HttpServletResponse;\nimport org.slf4j.MDC;\nimport org.springframework.stereotype.Component;\nimport org.springframework.web.filter.OncePerRequestFilter;\nimport java.io.IOException;\nimport java.util.UUID;\n\n@Component\npublic class CorrelationIdFilter extends OncePerRequestFilter {\n    public static final String CORRELATION_ID_HEADER = \"X-Correlation-Id\";\n    public static final String MDC_KEY = \"correlationId\";\n\n    @Override\n    protected void doFilterInternal(HttpServletRequest request,\n                                    HttpServletResponse response,\n                                    FilterChain filterChain) throws ServletException, IOException {\n        // TODO: Extract or generate correlation ID, populate MDC and response header, then clear in finally\n    }\n}",
+    "solutionCode": "package com.example.middleware;\n\nimport jakarta.servlet.FilterChain;\nimport jakarta.servlet.ServletException;\nimport jakarta.servlet.http.HttpServletRequest;\nimport jakarta.servlet.http.HttpServletResponse;\nimport org.slf4j.MDC;\nimport org.springframework.stereotype.Component;\nimport org.springframework.web.filter.OncePerRequestFilter;\nimport java.io.IOException;\nimport java.util.UUID;\n\n@Component\npublic class CorrelationIdFilter extends OncePerRequestFilter {\n    public static final String CORRELATION_ID_HEADER = \"X-Correlation-Id\";\n    public static final String MDC_KEY = \"correlationId\";\n\n    @Override\n    protected void doFilterInternal(HttpServletRequest request,\n                                    HttpServletResponse response,\n                                    FilterChain filterChain) throws ServletException, IOException {\n        String correlationId = request.getHeader(CORRELATION_ID_HEADER);\n        if (correlationId == null || correlationId.trim().isEmpty()) {\n            correlationId = UUID.randomUUID().toString();\n        }\n\n        try {\n            MDC.put(MDC_KEY, correlationId);\n            response.setHeader(CORRELATION_ID_HEADER, correlationId);\n            filterChain.doFilter(request, response);\n        } finally {\n            MDC.remove(MDC_KEY);\n        }\n    }\n}",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Reuses existing X-Correlation-Id header when present in incoming request",
+        "input": "request.setHeader('X-Correlation-Id', 'req-abc-123'); filter.doFilter(request, response, chain);",
+        "expected": "response.getHeader('X-Correlation-Id') == 'req-abc-123' and MDC.get('correlationId') inside chain is 'req-abc-123'"
+      },
+      {
+        "id": 2,
+        "description": "Generates valid UUID correlation ID when header is omitted",
+        "input": "request.clearHeaders(); filter.doFilter(request, response, chain);",
+        "expected": "response.getHeader('X-Correlation-Id') matches UUID format"
+      },
+      {
+        "id": 3,
+        "description": "Clears MDC key in finally block even if chain throws an unhandled exception",
+        "input": "chain.throwException(new RuntimeException('Downstream error')); filter.doFilter(request, response, chain);",
+        "expected": "MDC.get('correlationId') == null after filter execution"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Use `request.getHeader(CORRELATION_ID_HEADER)` and check for null or whitespace." },
+      { "level": 2, "text": "Wrap the `filterChain.doFilter(...)` call inside a `try { ... } finally { MDC.remove(MDC_KEY); }` block." }
+    ]
+  },
+  {
+    "id": "dev-22",
+    "title": "Spring Boot Global Exception Handler (RFC 7807 ProblemDetails)",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "ERROR_HANDLING",
+    "stack": "springboot",
+    "scenario": "Build a production Spring Boot REST API error handler adhering to RFC 7807 (Problem Details for HTTP APIs). Catch custom ResourceNotFoundException and MethodArgumentNotValidException, converting them into standardized, audit-ready HTTP error responses.",
+    "requirements": [
+      "Implement @RestControllerAdvice public class GlobalExceptionHandler.",
+      "Handle ResourceNotFoundException returning HttpStatus.NOT_FOUND (404) with type URI, title 'Resource Not Found', and detail message.",
+      "Handle MethodArgumentNotValidException returning HttpStatus.BAD_REQUEST (400) with a map of field names to validation error messages."
+    ],
+    "starterCode": "package com.example.exception;\n\nimport org.springframework.http.HttpStatus;\nimport org.springframework.http.ProblemDetail;\nimport org.springframework.http.ResponseEntity;\nimport org.springframework.web.bind.MethodArgumentNotValidException;\nimport org.springframework.web.bind.annotation.ExceptionHandler;\nimport org.springframework.web.bind.annotation.RestControllerAdvice;\nimport java.net.URI;\nimport java.util.HashMap;\nimport java.util.Map;\n\n@RestControllerAdvice\npublic class GlobalExceptionHandler {\n\n    @ExceptionHandler(ResourceNotFoundException.class)\n    public ProblemDetail handleNotFound(ResourceNotFoundException ex) {\n        // TODO: Return RFC 7807 ProblemDetail with 404 NOT_FOUND status and detail\n        return null;\n    }\n\n    @ExceptionHandler(MethodArgumentNotValidException.class)\n    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {\n        // TODO: Return 400 BAD_REQUEST with field error map\n        return null;\n    }\n}",
+    "solutionCode": "package com.example.exception;\n\nimport org.springframework.http.HttpStatus;\nimport org.springframework.http.ProblemDetail;\nimport org.springframework.http.ResponseEntity;\nimport org.springframework.validation.FieldError;\nimport org.springframework.web.bind.MethodArgumentNotValidException;\nimport org.springframework.web.bind.annotation.ExceptionHandler;\nimport org.springframework.web.bind.annotation.RestControllerAdvice;\nimport java.net.URI;\nimport java.util.HashMap;\nimport java.util.Map;\n\n@RestControllerAdvice\npublic class GlobalExceptionHandler {\n\n    @ExceptionHandler(ResourceNotFoundException.class)\n    public ProblemDetail handleNotFound(ResourceNotFoundException ex) {\n        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());\n        problem.setTitle(\"Resource Not Found\");\n        problem.setType(URI.create(\"https://api.example.com/errors/not-found\"));\n        return problem;\n    }\n\n    @ExceptionHandler(MethodArgumentNotValidException.class)\n    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {\n        Map<String, String> fieldErrors = new HashMap<>();\n        for (FieldError error : ex.getBindingResult().getFieldErrors()) {\n            fieldErrors.put(error.getField(), error.getDefaultMessage());\n        }\n\n        Map<String, Object> body = new HashMap<>();\n        body.put(\"status\", HttpStatus.BAD_REQUEST.value());\n        body.put(\"title\", \"Validation Failed\");\n        body.put(\"errors\", fieldErrors);\n\n        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);\n    }\n}",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Maps ResourceNotFoundException to 404 ProblemDetail",
+        "input": "handler.handleNotFound(new ResourceNotFoundException('Student ID 404 not found'));",
+        "expected": "problem.getStatus() == 404 and problem.getDetail() == 'Student ID 404 not found'"
+      },
+      {
+        "id": 2,
+        "description": "Extracts field validation messages on MethodArgumentNotValidException",
+        "input": "handler.handleValidation(validationExWithFieldError('email', 'Invalid format'));",
+        "expected": "body.get('errors').get('email') == 'Invalid format' and status == 400"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Spring 6 / Boot 3 provides `ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage())`." },
+      { "level": 2, "text": "Loop over `ex.getBindingResult().getFieldErrors()` to capture validation messages by field name." }
+    ]
+  },
+  {
+    "id": "dev-23",
+    "title": "Spring Boot Resilience4j Fallback & Circuit Breaker Client",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "RESILIENCE",
+    "stack": "springboot",
+    "scenario": "Your Spring Boot checkout service calls a 3rd party tax calculation API. If the provider experiences downtime, 5xx errors, or latency spikes, fail fast and fall back to estimated offline tax calculation without crashing client checkouts.",
+    "requirements": [
+      "Annotate method with @CircuitBreaker(name = 'taxService', fallbackMethod = 'fallbackTax').",
+      "Primary calculateTax(double amount, String state) executes remote call.",
+      "Fallback method fallbackTax(double amount, String state, Throwable t) calculates 8.25% default rate and flags response with isEstimated = true."
+    ],
+    "starterCode": "package com.example.service;\n\nimport io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;\nimport org.springframework.stereotype.Service;\n\n@Service\npublic class TaxCalculationService {\n\n    @CircuitBreaker(name = \"taxService\", fallbackMethod = \"fallbackTax\")\n    public TaxResponse calculateTax(double amount, String state) {\n        // TODO: Call remote tax API endpoint\n        return remoteTaxApiCall(amount, state);\n    }\n\n    public TaxResponse fallbackTax(double amount, String state, Throwable t) {\n        // TODO: Return estimated tax fallback response\n        return null;\n    }\n\n    private TaxResponse remoteTaxApiCall(double amount, String state) {\n        throw new RuntimeException(\"Tax API unreachable\");\n    }\n}",
+    "solutionCode": "package com.example.service;\n\nimport io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\nimport org.springframework.stereotype.Service;\n\n@Service\npublic class TaxCalculationService {\n    private static final Logger log = LoggerFactory.getLogger(TaxCalculationService.class);\n    private static final double DEFAULT_TAX_RATE = 0.0825;\n\n    @CircuitBreaker(name = \"taxService\", fallbackMethod = \"fallbackTax\")\n    public TaxResponse calculateTax(double amount, String state) {\n        return remoteTaxApiCall(amount, state);\n    }\n\n    public TaxResponse fallbackTax(double amount, String state, Throwable t) {\n        log.warn(\"Tax service degraded: routing to fallback calculation for state {}. Reason: {}\", state, t.getMessage());\n        double estimatedTax = Math.round(amount * DEFAULT_TAX_RATE * 100.0) / 100.0;\n        return new TaxResponse(estimatedTax, DEFAULT_TAX_RATE, true, \"Estimated fallback tax calculation\");\n    }\n\n    protected TaxResponse remoteTaxApiCall(double amount, String state) {\n        throw new RuntimeException(\"Tax API unreachable\");\n    }\n}",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Invokes fallback method when remote tax provider throws exception",
+        "input": "service.calculateTax(100.0, 'CA')",
+        "expected": "response.getTaxAmount() == 8.25 and response.isEstimated() == true"
+      },
+      {
+        "id": 2,
+        "description": "Calculates proportional fallback for fractional amounts",
+        "input": "service.calculateTax(250.0, 'NY')",
+        "expected": "response.getTaxAmount() == 20.63"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "The fallback method signature must match the original method arguments plus a trailing `Throwable` parameter." },
+      { "level": 2, "text": "Mark the fallback response object with an `isEstimated: true` flag." }
+    ]
+  },
+  {
+    "id": "dev-24",
+    "title": "Spring Boot Caffeine Cache Tier with Write Eviction",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "CACHING",
+    "stack": "springboot",
+    "scenario": "Implement an in-memory high-throughput caching tier for student placement profile lookups using Caffeine Cache. Ensure thread-safe cache hits, cache-miss fallback to database supplier, and write eviction on profile updates.",
+    "requirements": [
+      "Initialize Caffeine Cache with maximumSize = 1000 and expireAfterWrite = 10 minutes.",
+      "Implement getProfile(String studentId, Supplier<StudentProfile> dbSupplier).",
+      "Implement evictProfile(String studentId) to invalidate stale entries.",
+      "Track cache hits and misses via Caffeine metrics."
+    ],
+    "starterCode": "package com.example.cache;\n\nimport com.github.benmanes.caffeine.cache.Cache;\nimport com.github.benmanes.caffeine.cache.Caffeine;\nimport org.springframework.stereotype.Service;\nimport java.util.concurrent.TimeUnit;\nimport java.util.function.Supplier;\n\n@Service\npublic class StudentProfileCacheService {\n    private final Cache<String, Object> cache;\n\n    public StudentProfileCacheService() {\n        // TODO: Configure Caffeine cache with 1000 max size and 10 min TTL\n        this.cache = null;\n    }\n\n    public Object getProfile(String studentId, Supplier<Object> dbSupplier) {\n        // TODO: Return cached value or invoke dbSupplier\n        return null;\n    }\n\n    public void evictProfile(String studentId) {\n        // TODO: Invalidate cache key\n    }\n}",
+    "solutionCode": "package com.example.cache;\n\nimport com.github.benmanes.caffeine.cache.Cache;\nimport com.github.benmanes.caffeine.cache.Caffeine;\nimport org.springframework.stereotype.Service;\nimport java.util.concurrent.TimeUnit;\nimport java.util.function.Supplier;\n\n@Service\npublic class StudentProfileCacheService {\n    private final Cache<String, Object> cache;\n\n    public StudentProfileCacheService() {\n        this.cache = Caffeine.newBuilder()\n                .maximumSize(1000)\n                .expireAfterWrite(10, TimeUnit.MINUTES)\n                .recordStats()\n                .build();\n    }\n\n    public Object getProfile(String studentId, Supplier<Object> dbSupplier) {\n        return this.cache.get(studentId, k -> dbSupplier.get());\n    }\n\n    public void evictProfile(String studentId) {\n        this.cache.invalidate(studentId);\n    }\n\n    public long getHitCount() {\n        return this.cache.stats().hitCount();\n    }\n}",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Invokes dbSupplier only once across duplicate calls for same studentId",
+        "input": "calls = 0; s = () -> { calls++; return 'profile-1'; }; cache.getProfile('1', s); cache.getProfile('1', s);",
+        "expected": "result == 'profile-1' and calls == 1"
+      },
+      {
+        "id": 2,
+        "description": "Evicts key from cache so subsequent call queries dbSupplier again",
+        "input": "cache.evictProfile('1'); cache.getProfile('1', s);",
+        "expected": "calls == 2"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Use `Caffeine.newBuilder().maximumSize(1000).expireAfterWrite(10, TimeUnit.MINUTES).build()`." },
+      { "level": 2, "text": "Use `cache.get(key, k -> supplier.get())` which atomically computes on cache miss." }
+    ]
+  },
+  {
+    "id": "dev-25",
+    "title": "Spring Boot JWT Authentication Bearer Token Filter",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "SECURITY",
+    "stack": "springboot",
+    "scenario": "Implement a Spring Security token extraction filter that parses Bearer JWT tokens from the HTTP Authorization header, verifies signature and expiration, and binds the authenticated principal into SecurityContextHolder.",
+    "requirements": [
+      "Extract token from Authorization header prefix 'Bearer '.",
+      "If header is absent or does not start with 'Bearer ', pass request to next filter.",
+      "Validate JWT claims and subject.",
+      "Set UsernamePasswordAuthenticationToken in SecurityContextHolder.getContext().setAuthentication(...)."
+    ],
+    "starterCode": "package com.example.security;\n\nimport jakarta.servlet.FilterChain;\nimport jakarta.servlet.ServletException;\nimport jakarta.servlet.http.HttpServletRequest;\nimport jakarta.servlet.http.HttpServletResponse;\nimport org.springframework.security.core.context.SecurityContextHolder;\nimport org.springframework.stereotype.Component;\nimport org.springframework.web.filter.OncePerRequestFilter;\nimport java.io.IOException;\n\n@Component\npublic class JwtAuthFilter extends OncePerRequestFilter {\n    private final JwtTokenValidator validator = new JwtTokenValidator();\n\n    @Override\n    protected void doFilterInternal(HttpServletRequest request,\n                                    HttpServletResponse response,\n                                    FilterChain filterChain) throws ServletException, IOException {\n        // TODO: Extract Bearer token, validate, set Authentication in SecurityContextHolder\n        filterChain.doFilter(request, response);\n    }\n}",
+    "solutionCode": "package com.example.security;\n\nimport jakarta.servlet.FilterChain;\nimport jakarta.servlet.ServletException;\nimport jakarta.servlet.http.HttpServletRequest;\nimport jakarta.servlet.http.HttpServletResponse;\nimport org.springframework.security.authentication.UsernamePasswordAuthenticationToken;\nimport org.springframework.security.core.authority.SimpleGrantedAuthority;\nimport org.springframework.security.core.context.SecurityContextHolder;\nimport org.springframework.stereotype.Component;\nimport org.springframework.web.filter.OncePerRequestFilter;\nimport java.io.IOException;\nimport java.util.Collections;\n\n@Component\npublic class JwtAuthFilter extends OncePerRequestFilter {\n    private final JwtTokenValidator validator = new JwtTokenValidator();\n\n    @Override\n    protected void doFilterInternal(HttpServletRequest request,\n                                    HttpServletResponse response,\n                                    FilterChain filterChain) throws ServletException, IOException {\n        String authHeader = request.getHeader(\"Authorization\");\n        if (authHeader != null && authHeader.startsWith(\"Bearer \")) {\n            String token = authHeader.substring(7).trim();\n            if (validator.isValid(token)) {\n                String username = validator.getUsername(token);\n                String role = validator.getRole(token);\n                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(\n                        username,\n                        null,\n                        Collections.singletonList(new SimpleGrantedAuthority(role))\n                );\n                SecurityContextHolder.getContext().setAuthentication(auth);\n            }\n        }\n        filterChain.doFilter(request, response);\n    }\n}",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Sets authenticated principal when valid Bearer token provided",
+        "input": "request.setHeader('Authorization', 'Bearer valid-jwt-token'); filter.doFilter(request, response, chain);",
+        "expected": "SecurityContextHolder.getContext().getAuthentication().getName() == 'student_1'"
+      },
+      {
+        "id": 2,
+        "description": "Skips authentication when Authorization header is absent",
+        "input": "request.clearHeaders(); filter.doFilter(request, response, chain);",
+        "expected": "SecurityContextHolder.getContext().getAuthentication() == null"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Check `authHeader != null && authHeader.startsWith('Bearer ')`." },
+      { "level": 2, "text": "Use `authHeader.substring(7)` to obtain the raw JWT token." }
+    ]
+  },
+  {
+    "id": "dev-26",
+    "title": "FastAPI Sliding Window Rate Limiting Dependency",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "RATE_LIMITING",
+    "stack": "fastapi",
+    "scenario": "Implement an in-memory sliding window rate limiter as a reusable FastAPI Depends() dependency. Limit clients to 5 requests per 10-second window based on client IP, returning HTTP 429 Too Many Requests with a Retry-After response header.",
+    "requirements": [
+      "Implement class SlidingWindowLimiter callable as a FastAPI dependency.",
+      "Track request timestamps per client IP.",
+      "Evict timestamps older than window_seconds.",
+      "If count >= max_requests, raise HTTPException(status_code=429, detail='Rate limit exceeded', headers={'Retry-After': str(retry_after)})."
+    ],
+    "starterCode": "import time\nfrom collections import defaultdict\nfrom fastapi import Request, HTTPException, status\n\nclass SlidingWindowLimiter:\n    def __init__(self, max_requests: int = 5, window_seconds: int = 10):\n        self.max_requests = max_requests\n        self.window_seconds = window_seconds\n        self.history = defaultdict(list)\n\n    async def __call__(self, request: Request):\n        # TODO: Get client IP, prune old timestamps, check limit, raise 429 if exceeded\n        pass\n\nrate_limiter = SlidingWindowLimiter(max_requests=5, window_seconds=10)",
+    "solutionCode": "import time\nfrom collections import defaultdict\nfrom fastapi import Request, HTTPException, status\n\nclass SlidingWindowLimiter:\n    def __init__(self, max_requests: int = 5, window_seconds: int = 10):\n        self.max_requests = max_requests\n        self.window_seconds = window_seconds\n        self.history = defaultdict(list)\n\n    async def __call__(self, request: Request):\n        client_ip = request.client.host if request.client else \"127.0.0.1\"\n        now = time.time()\n        window_start = now - self.window_seconds\n\n        # Prune timestamps older than sliding window\n        self.history[client_ip] = [t for t in self.history[client_ip] if t > window_start]\n\n        if len(self.history[client_ip]) >= self.max_requests:\n            oldest_in_window = self.history[client_ip][0]\n            retry_after = max(1, int(oldest_in_window + self.window_seconds - now))\n            raise HTTPException(\n                status_code=status.HTTP_429_TOO_MANY_REQUESTS,\n                detail=\"Rate limit exceeded. Please wait before retrying.\",\n                headers={\"Retry-After\": str(retry_after)}\n            )\n\n        self.history[client_ip].append(now)\n        return True\n\nrate_limiter = SlidingWindowLimiter(max_requests=5, window_seconds=10)",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Allows first 5 requests within window for same IP",
+        "input": "for _ in range(5): await rate_limiter(mock_req('192.168.1.1'))",
+        "expected": "All 5 requests succeed without exception"
+      },
+      {
+        "id": 2,
+        "description": "Raises HTTPException 429 on 6th request with Retry-After header",
+        "input": "await rate_limiter(mock_req('192.168.1.1'))",
+        "expected": "Raises HTTPException with status_code == 429 and headers['Retry-After']"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Extract client IP with `request.client.host`." },
+      { "level": 2, "text": "Filter timestamps with `[t for t in history[ip] if t > (now - window_seconds)]`." }
+    ]
+  },
+  {
+    "id": "dev-27",
+    "title": "FastAPI Async Background Task Webhook Dispatcher",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "ASYNC_FLOW",
+    "stack": "fastapi",
+    "scenario": "Build an asynchronous webhook receiver in FastAPI. The endpoint must validate the webhook HMAC-SHA256 signature, immediately respond with 202 Accepted and {'status': 'QUEUED'}, and queue background processing without blocking the HTTP worker thread.",
+    "requirements": [
+      "Verify 'X-Signature-256' using hmac.compare_digest(computed_hash, header_sig).",
+      "Schedule async task process_webhook_event(event_id, payload) using BackgroundTasks.add_task().",
+      "Return status code 202 Accepted with JSON {'status': 'QUEUED', 'eventId': event_id}."
+    ],
+    "starterCode": "import hmac\nimport hashlib\nfrom fastapi import FastAPI, BackgroundTasks, Request, HTTPException, status\n\napp = FastAPI()\nWEBHOOK_SECRET = b\"super_secret_webhook_key\"\n\nasync def process_webhook_event(event_id: str, payload: dict):\n    # Simulate slow background processing (e.g. database sync)\n    pass\n\n@app.post(\"/api/webhooks/placement\", status_code=status.HTTP_202_ACCEPTED)\nasync def receive_webhook(request: Request, background_tasks: BackgroundTasks):\n    # TODO: Verify HMAC-SHA256 signature and queue background task\n    return {\"status\": \"QUEUED\"}",
+    "solutionCode": "import hmac\nimport hashlib\nfrom fastapi import FastAPI, BackgroundTasks, Request, HTTPException, status\n\napp = FastAPI()\nWEBHOOK_SECRET = b\"super_secret_webhook_key\"\n\nasync def process_webhook_event(event_id: str, payload: dict):\n    pass\n\n@app.post(\"/api/webhooks/placement\", status_code=status.HTTP_202_ACCEPTED)\nasync def receive_webhook(request: Request, background_tasks: BackgroundTasks):\n    body_bytes = await request.body()\n    signature = request.headers.get(\"X-Signature-256\")\n\n    if not signature:\n        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=\"Missing signature header\")\n\n    computed_sig = hmac.new(WEBHOOK_SECRET, body_bytes, hashlib.sha256).hexdigest()\n    if not hmac.compare_digest(computed_sig, signature):\n        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=\"Invalid webhook signature\")\n\n    payload = await request.json()\n    event_id = payload.get(\"id\", \"evt_default\")\n\n    background_tasks.add_task(process_webhook_event, event_id, payload)\n\n    return {\"status\": \"QUEUED\", \"eventId\": event_id}",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Rejects webhook when signature is missing or incorrect",
+        "input": "client.post('/api/webhooks/placement', json={'id': '1'}, headers={})",
+        "expected": "status_code == 401"
+      },
+      {
+        "id": 2,
+        "description": "Accepts webhook with valid HMAC signature and returns 202 Accepted",
+        "input": "client.post('/api/webhooks/placement', json={'id': 'evt_1'}, headers={'X-Signature-256': valid_hmac})",
+        "expected": "status_code == 202 and body['status'] == 'QUEUED'"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Read raw payload bytes with `await request.body()` for HMAC hashing before parsing JSON." },
+      { "level": 2, "text": "Use `background_tasks.add_task(process_webhook_event, event_id, payload)`." }
+    ]
+  },
+  {
+    "id": "dev-28",
+    "title": "FastAPI Pydantic v2 Request Sanitization & E.164 Normalizer",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "DATA_VALIDATION",
+    "stack": "fastapi",
+    "scenario": "Implement a Pydantic v2 validation schema for candidate registration with strict sanitization: strip dangerous HTML/script tags from fullName, normalize phone numbers to international E.164 format (+91...), and lowercase emails.",
+    "requirements": [
+      "Define StudentRegistration(BaseModel).",
+      "@field_validator('email') trims and lowercases email address.",
+      "@field_validator('phone') strips non-digits (preserving leading +) and validates 10-15 digits.",
+      "@field_validator('fullName') strips HTML tags using regex re.sub(r'<[^>]*>', '', v)."
+    ],
+    "starterCode": "import re\nfrom pydantic import BaseModel, field_validator\n\nclass StudentRegistration(BaseModel):\n    fullName: str\n    email: str\n    phone: str\n\n    # TODO: Implement Pydantic v2 field_validators for fullName, email, and phone\n",
+    "solutionCode": "import re\nfrom pydantic import BaseModel, field_validator\n\nclass StudentRegistration(BaseModel):\n    fullName: str\n    email: str\n    phone: str\n\n    @field_validator(\"fullName\")\n    @classmethod\n    def sanitize_name(cls, v: str) -> str:\n        cleaned = re.sub(r\"<[^>]*>\", \"\", v).strip()\n        if not cleaned:\n            raise ValueError(\"Full name cannot be blank or pure HTML tags\")\n        return cleaned\n\n    @field_validator(\"email\")\n    @classmethod\n    def normalize_email(cls, v: str) -> str:\n        cleaned = v.strip().lower()\n        if \"@\" not in cleaned or \".\" not in cleaned:\n            raise ValueError(\"Invalid email format\")\n        return cleaned\n\n    @field_validator(\"phone\")\n    @classmethod\n    def normalize_phone(cls, v: str) -> str:\n        digits = re.sub(r\"[^0-9+]\", \"\", v.strip())\n        if not digits.startswith(\"+\"):\n            digits = \"+91\" + digits  # Default country code\n        raw_digits = digits.replace(\"+\", \"\")\n        if len(raw_digits) < 10 or len(raw_digits) > 15:\n            raise ValueError(\"Phone must contain between 10 and 15 digits\")\n        return digits",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Strips dangerous HTML script tags from fullName",
+        "input": "StudentRegistration(fullName='<script>alert(1)</script>John Doe', email='John@Test.COM', phone='9876543210')",
+        "expected": "obj.fullName == 'alert(1)John Doe' and obj.email == 'john@test.com' and obj.phone == '+919876543210'"
+      },
+      {
+        "id": 2,
+        "description": "Normalizes email to lowercase and phone to E.164",
+        "input": "StudentRegistration(fullName='Jane', email=' Jane@CORP.IN ', phone='+1 555-123-4567')",
+        "expected": "obj.email == 'jane@corp.in' and obj.phone == '+15551234567'"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "In Pydantic v2, use `@field_validator('fieldname')` with `@classmethod`." },
+      { "level": 2, "text": "Use `re.sub(r'<[^>]*>', '', v).strip()` to strip HTML tags." }
+    ]
+  },
+  {
+    "id": "dev-29",
+    "title": "FastAPI JWT OAuth2 Security Dependency with Scopes",
+    "difficulty": "Hard",
+    "category": "Dev Practices",
+    "topic": "SECURITY",
+    "stack": "fastapi",
+    "scenario": "Build a role-based access control (RBAC) dependency in FastAPI using OAuth2 security scopes. Verify JWT signature, extract claims, and check that the requesting user possesses the required permission scope (e.g. 'placement:admin', 'student:read').",
+    "requirements": [
+      "Implement require_scope(required_scope: str) returning a dependency function.",
+      "Extract Bearer token using Security(OAuth2PasswordBearer(tokenUrl='token')).",
+      "Decode JWT using secret and HS256 algorithm.",
+      "If user token lacks required_scope in claims['scopes'], raise HTTPException(status_code=403, detail='Forbidden: insufficient scope')."
+    ],
+    "starterCode": "from fastapi import Depends, HTTPException, status, Security\nfrom fastapi.security import OAuth2PasswordBearer, SecurityScopes\nimport jwt\n\nSECRET_KEY = \"fastapi_super_secret_jwt_key\"\nALGORITHM = \"HS256\"\noauth2_scheme = OAuth2PasswordBearer(tokenUrl=\"/api/auth/token\")\n\ndef require_scope(required_scope: str):\n    async def scope_dependency(token: str = Depends(oauth2_scheme)):\n        # TODO: Decode token, verify scopes, raise 401 or 403\n        pass\n    return scope_dependency",
+    "solutionCode": "from fastapi import Depends, HTTPException, status, Security\nfrom fastapi.security import OAuth2PasswordBearer\nimport jwt\n\nSECRET_KEY = \"fastapi_super_secret_jwt_key\"\nALGORITHM = \"HS256\"\noauth2_scheme = OAuth2PasswordBearer(tokenUrl=\"/api/auth/token\")\n\ndef require_scope(required_scope: str):\n    async def scope_dependency(token: str = Depends(oauth2_scheme)):\n        try:\n            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])\n        except jwt.PyJWTError:\n            raise HTTPException(\n                status_code=status.HTTP_401_UNAUTHORIZED,\n                detail=\"Invalid or expired authentication token\",\n                headers={\"WWW-Authenticate\": \"Bearer\"}\n            )\n\n        user_scopes = payload.get(\"scopes\", [])\n        if required_scope not in user_scopes and \"superadmin\" not in user_scopes:\n            raise HTTPException(\n                status_code=status.HTTP_403_FORBIDDEN,\n                detail=f\"Forbidden: Missing required scope '{required_scope}'\"\n            )\n\n        return payload\n    return scope_dependency",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Permits caller when token possesses required scope",
+        "input": "dep = require_scope('student:read'); await dep(token_with_scopes(['student:read']))",
+        "expected": "Returns payload containing user subject"
+      },
+      {
+        "id": 2,
+        "description": "Raises 403 Forbidden when caller lacks required scope",
+        "input": "dep = require_scope('placement:admin'); await dep(token_with_scopes(['student:read']))",
+        "expected": "Raises HTTPException with status_code == 403"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Use `jwt.decode(token, SECRET_KEY, algorithms=['HS256'])` in a try/except block." },
+      { "level": 2, "text": "Check `if required_scope not in user_scopes: raise HTTPException(status_code=403)`." }
+    ]
+  },
+  {
+    "id": "dev-30",
+    "title": "FastAPI Structured JSON Logging Middleware with Latency",
+    "difficulty": "Medium",
+    "category": "Dev Practices",
+    "topic": "MIDDLEWARE",
+    "stack": "fastapi",
+    "scenario": "Implement a custom Starlette/FastAPI BaseHTTPMiddleware that measures request execution time, injects an X-Process-Time-Ms response header, and logs structured JSON containing method, path, status_code, and latency in milliseconds.",
+    "requirements": [
+      "Subclass BaseHTTPMiddleware and override dispatch(request, call_next).",
+      "Record start time using time.perf_counter().",
+      "Call response = await call_next(request).",
+      "Calculate duration_ms = round((time.perf_counter() - start_time) * 1000, 2).",
+      "Add header 'X-Process-Time-Ms' to response.",
+      "Output JSON log string with fields: method, path, status, duration_ms."
+    ],
+    "starterCode": "import time\nimport json\nfrom starlette.middleware.base import BaseHTTPMiddleware\nfrom fastapi import Request, Response\n\nclass StructuredLoggingMiddleware(BaseHTTPMiddleware):\n    async def dispatch(self, request: Request, call_next) -> Response:\n        # TODO: Measure latency, set X-Process-Time-Ms header, output structured JSON log\n        return await call_next(request)",
+    "solutionCode": "import time\nimport json\nfrom starlette.middleware.base import BaseHTTPMiddleware\nfrom fastapi import Request, Response\n\nclass StructuredLoggingMiddleware(BaseHTTPMiddleware):\n    async def dispatch(self, request: Request, call_next) -> Response:\n        start_time = time.perf_counter()\n\n        response = await call_next(request)\n\n        duration_ms = round((time.perf_counter() - start_time) * 1000, 2)\n        response.headers[\"X-Process-Time-Ms\"] = str(duration_ms)\n\n        log_entry = {\n            \"method\": request.method,\n            \"path\": request.url.path,\n            \"status\": response.status_code,\n            \"duration_ms\": duration_ms\n        }\n        print(json.dumps(log_entry))\n\n        return response",
+    "testCases": [
+      {
+        "id": 1,
+        "description": "Attaches X-Process-Time-Ms header to response",
+        "input": "res = await client.get('/health')",
+        "expected": "res.headers.get('X-Process-Time-Ms') is not None"
+      },
+      {
+        "id": 2,
+        "description": "Calculates positive execution time in milliseconds",
+        "input": "duration = float(res.headers.get('X-Process-Time-Ms'))",
+        "expected": "duration > 0.0"
+      }
+    ],
+    "hints": [
+      { "level": 1, "text": "Use `time.perf_counter()` before and after `await call_next(request)`." },
+      { "level": 2, "text": "Set `response.headers['X-Process-Time-Ms'] = str(duration_ms)`." }
+    ]
   }
 ]
+

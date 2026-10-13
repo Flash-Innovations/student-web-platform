@@ -20,8 +20,7 @@ import {
   Layers,
   Cpu,
   Search,
-  Filter,
-  Bot
+  Filter
 } from "lucide-react";
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
@@ -37,7 +36,7 @@ const CodeEditor = lazy(() => import("../../components/common/CodeEditor").then(
 export function DevArenaPage() {
   const navigate = useNavigate();
   const { questionId } = useParams();
-  const { setScreenContext, openAssistantWithQuery } = useScreenContext();
+  const { setScreenContext } = useScreenContext();
 
   const [questions, setQuestions] = useState(() => practiceService.getCachedDevQuestions() || devQuestionsFallback);
 
@@ -189,6 +188,33 @@ export function DevArenaPage() {
     return ["ALL", ...Array.from(set)];
   }, [questions]);
 
+  // Dynamic stack metadata for Monaco editor & visual pills
+  const stackInfo = useMemo(() => {
+    const s = (question?.stack || "").toLowerCase();
+    if (s.includes("java") || s.includes("spring")) {
+      return {
+        filename: "Solution.java",
+        runtime: "Spring Boot 3 / Java 17+",
+        lang: "java",
+        badgeColor: "bg-purple-50 text-purple-700 border-purple-200"
+      };
+    }
+    if (s.includes("python") || s.includes("fastapi")) {
+      return {
+        filename: "main.py",
+        runtime: "FastAPI / Python 3.11+",
+        lang: "python",
+        badgeColor: "bg-sky-50 text-sky-700 border-sky-200"
+      };
+    }
+    return {
+      filename: "solution.js",
+      runtime: "Node.js ES6+ Environment",
+      lang: "javascript",
+      badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200"
+    };
+  }, [question?.stack]);
+
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-10">
       {/* Top Header & Controls */}
@@ -198,9 +224,9 @@ export function DevArenaPage() {
             variant="ghost"
             size="xs"
             icon={ArrowLeft}
-            onClick={() => navigate("/student/practice")}
+            onClick={() => navigate("/student/practice/dev")}
           >
-            Practice Hub
+            All Dev Tasks
           </Button>
 
           <div className="flex items-center gap-2">
@@ -224,7 +250,7 @@ export function DevArenaPage() {
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   {question.topic}
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${stackInfo.badgeColor}`}>
                   {question.stack?.toUpperCase() || "NODE.JS"}
                 </span>
               </div>
@@ -265,20 +291,6 @@ export function DevArenaPage() {
             onClick={() => setShowBankModal(true)}
           >
             Tasks Bank ({questions.length})
-          </Button>
-
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Bot}
-            onClick={() =>
-              openAssistantWithQuery(
-                `I am working on the developer engineering task: "${question.title}" (${question.topic}). Scenario: ${question.scenario}. Give me guidance on the architecture and clean implementation patterns.`,
-                "HINT"
-              )
-            }
-          >
-            Ask AI Assistant
           </Button>
         </div>
       </div>
@@ -382,8 +394,8 @@ export function DevArenaPage() {
             {/* Editor Toolbar */}
             <div className="bg-slate-900 px-4 py-2.5 flex items-center justify-between text-white border-b border-slate-800">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-semibold text-emerald-400">solution.js</span>
-                <span className="text-[10px] text-slate-400">Node.js ES6+ Environment</span>
+                <span className="text-xs font-mono font-semibold text-emerald-400">{stackInfo.filename}</span>
+                <span className="text-[10px] text-slate-400">{stackInfo.runtime}</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -425,14 +437,14 @@ export function DevArenaPage() {
               <Suspense
                 fallback={
                   <div className="h-full flex items-center justify-center text-slate-500 text-xs font-mono">
-                    Loading JavaScript Workspace...
+                    Loading {stackInfo.lang} Workspace...
                   </div>
                 }
               >
                 <CodeEditor
                   value={userCode}
                   onChange={(val) => setUserCode(val || "")}
-                  language="javascript"
+                  language={stackInfo.lang}
                   theme="vs-dark"
                   height="100%"
                   options={{
