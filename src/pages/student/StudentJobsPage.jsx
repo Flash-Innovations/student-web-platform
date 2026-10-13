@@ -16,7 +16,8 @@ import {
   Check,
   RefreshCw,
   BookOpen,
-  Play
+  Play,
+  Bot
 } from "lucide-react";
 import { studentService } from "../../services/studentService";
 import { practiceService } from "../../services/practiceService";
@@ -26,6 +27,7 @@ import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { DashboardSkeleton } from "../../components/common/LoadingSkeleton";
 import { useNotifications } from "../../context/NotificationContext";
+import { useScreenContext } from "../../context/ScreenContext";
 
 export function StudentJobsPage() {
   const navigate = useNavigate();
@@ -42,6 +44,35 @@ export function StudentJobsPage() {
   const [analyzingMl, setAnalyzingMl] = useState(false);
   const [mlAnalysisResult, setMlAnalysisResult] = useState(null);
   const [applyingJobId, setApplyingJobId] = useState(null);
+
+  // Sync active job description with Screen-Aware AI Assistant
+  const { setScreenContext, openAssistantWithQuery } = useScreenContext();
+  useEffect(() => {
+    if (selectedJob) {
+      setScreenContext({
+        contextType: "JOB_DESCRIPTION",
+        data: {
+          jobTitle: selectedJob.role || selectedJob.title || "Software Engineer",
+          company: selectedJob.company || "Campus Recruiter",
+          location: selectedJob.location,
+          ctc: selectedJob.ctc,
+          requiredSkills: selectedJob.skillsRequired || selectedJob.skills || [],
+          matchScore: selectedJob.matchScore,
+          eligibility: selectedJob.eligibility
+        }
+      });
+    } else if (jobs.length > 0) {
+      setScreenContext({
+        contextType: "JOB_DESCRIPTION",
+        data: {
+          jobTitle: jobs[0].role || jobs[0].title || "Software Engineer",
+          company: jobs[0].company || "Campus Recruiter",
+          requiredSkills: jobs[0].skillsRequired || jobs[0].skills || [],
+          totalAvailableDrives: jobs.length
+        }
+      });
+    }
+  }, [selectedJob, jobs, setScreenContext]);
 
   const handleSelectJob = async (job) => {
     setSelectedJob(job);
@@ -598,16 +629,31 @@ export function StudentJobsPage() {
                     Match Intelligence Engine
                   </span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  loading={analyzingMl}
-                  disabled={analyzingMl}
-                  onClick={() => handleAnalyzeMatch(selectedJob.id || selectedJob._id)}
-                  icon={RefreshCw}
-                >
-                  {mlAnalysisResult ? "Re-analyze with AI" : "Run ML Hybrid Match"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    onClick={() =>
+                      openAssistantWithQuery(
+                        `Analyze ${selectedJob.role || selectedJob.title} at ${selectedJob.company}. Explain my matched and missing skills and build a self-paced study plan.`,
+                        "STUDY_PLAN"
+                      )
+                    }
+                    icon={Bot}
+                  >
+                    AI Voice & Study Plan
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    loading={analyzingMl}
+                    disabled={analyzingMl}
+                    onClick={() => handleAnalyzeMatch(selectedJob.id || selectedJob._id)}
+                    icon={RefreshCw}
+                  >
+                    {mlAnalysisResult ? "Re-analyze ML" : "Run ML Match"}
+                  </Button>
+                </div>
               </div>
 
               {mlAnalysisResult ? (

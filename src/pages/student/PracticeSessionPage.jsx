@@ -22,6 +22,7 @@ import { Modal } from "../../components/common/Modal";
 // import { ProblemStatement } from "../../components/common/ProblemStatement";
 import { practiceService } from "../../services/practiceService";
 import { DetailSkeleton } from "../../components/common/LoadingSkeleton";
+import { useScreenContext } from "../../context/ScreenContext";
 import {
   normalizeOptions,
   isOptionSelected,
@@ -54,6 +55,24 @@ export function PracticeSessionPage() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+
+  // Sync active MCQ question with Screen-Aware AI Assistant
+  const { setScreenContext } = useScreenContext();
+  useEffect(() => {
+    const currentQ = questions[currentIndex];
+    if (currentQ) {
+      setScreenContext({
+        contextType: "PRACTICE_MCQ",
+        data: {
+          questionTitle: currentQ.title || currentQ.question || `Question #${currentIndex + 1}`,
+          questionText: currentQ.description || currentQ.question || "",
+          options: currentQ.options || [],
+          currentIndex: currentIndex + 1,
+          totalQuestions: questions.length
+        }
+      });
+    }
+  }, [questions, currentIndex, setScreenContext]);
 
   const loadSession = useCallback(async () => {
     setLoading(true);

@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar";
 import { TopNavbar } from "./TopNavbar";
 import { cn } from "../../utils/cn";
 import { ErrorBoundary } from "../common/ErrorBoundary";
+import { FloatingAIAssistant } from "../assistant/FloatingAIAssistant";
 
 export function DashboardLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -33,6 +34,9 @@ export function DashboardLayout() {
             <Outlet />
           </ErrorBoundary>
         </main>
+
+        {/* Global Screen-Aware Floating AI Assistant */}
+        <FloatingAIAssistant />
       </div>
     </div>
   );

@@ -22,14 +22,31 @@ import { Badge } from "../../components/common/Badge";
 import { DetailSkeleton } from "../../components/common/LoadingSkeleton";
 import { practiceService } from "../../services/practiceService";
 import { normalizeOptions } from "../../utils/questionUtils";
+import { useScreenContext } from "../../context/ScreenContext";
 
 export function PracticeResultPage() {
   const { attemptId } = useParams();
   const navigate = useNavigate();
+  const { setScreenContext } = useScreenContext();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    if (result) {
+      setScreenContext({
+        contextType: "PRACTICE_MCQ",
+        data: {
+          category: result.category || "Practice Assessment",
+          score: result.score,
+          totalMarks: result.totalMarks,
+          totalQuestions: result.breakdown?.length || 0,
+          correctCount: (result.breakdown || []).filter((b) => b.isCorrect).length
+        }
+      });
+    }
+  }, [result, setScreenContext]);
 
   useEffect(() => {
     async function loadResult() {

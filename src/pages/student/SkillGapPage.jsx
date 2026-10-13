@@ -6,7 +6,8 @@ import {
   Sparkles,
   CheckCircle2,
   Layers,
-  FileCode
+  FileCode,
+  Bot
 } from "lucide-react";
 import { studentService } from "../../services/studentService";
 import { Card, CardHeader } from "../../components/common/Card";
@@ -14,13 +15,29 @@ import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { RadarSkillChart } from "../../components/charts/RadarSkillChart";
 import { DashboardSkeleton } from "../../components/common/LoadingSkeleton";
+import { useScreenContext } from "../../context/ScreenContext";
 
 export function SkillGapPage() {
   const navigate = useNavigate();
+  const { setScreenContext, openAssistantWithQuery } = useScreenContext();
   const [student, setStudent] = useState(null);
   const [skills, setSkills] = useState([]);
   const [radarData, setRadarData] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (student) {
+      setScreenContext({
+        contextType: "SKILL_GAP",
+        data: {
+          targetTrack: student.branch ? `${student.branch} Placement Track` : "Full Stack Software Engineering",
+          currentSkills: skills,
+          readinessScore: student.readinessScore || 70,
+          technicalScore: student.metrics?.technicalScore || 70
+        }
+      });
+    }
+  }, [student, skills, setScreenContext]);
 
   useEffect(() => {
     async function load() {
@@ -61,6 +78,19 @@ export function SkillGapPage() {
           <Badge variant="success" size="lg">
             {skills.length} Verified Skills
           </Badge>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() =>
+              openAssistantWithQuery(
+                "Analyze my verified technical skills. What high-impact bridge skills should I add to my skillset to become Market Ready for placement drives?",
+                "BRIDGE_SKILLS"
+              )
+            }
+            icon={Bot}
+          >
+            Ask AI: What to Add
+          </Button>
           <Button
             variant="outline"
             size="sm"

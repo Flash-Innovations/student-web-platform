@@ -28,6 +28,7 @@ import { Modal } from "../../components/common/Modal";
 import { practiceService } from "../../services/practiceService";
 import { studentService } from "../../services/studentService";
 import { WorkspaceSkeleton } from "../../components/common/LoadingSkeleton";
+import { useScreenContext } from "../../context/ScreenContext";
 
 // Lazy-load heavy components
 const CodeEditor = lazy(() => import("../../components/common/CodeEditor").then(m => ({ default: m.CodeEditor })));
@@ -172,6 +173,27 @@ export function CodingArenaPage() {
   // Editor Ref for synchronized scroll
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
+
+  // Sync active code and problem statement with Screen-Aware AI Assistant
+  const { setScreenContext } = useScreenContext();
+  useEffect(() => {
+    if (question) {
+      setScreenContext({
+        contextType: "CODING_ARENA",
+        data: {
+          problemTitle: question.title || "Coding Problem",
+          difficulty: question.difficulty || "Medium",
+          language,
+          currentCode: sourceCodeByLang[language] || "",
+          executionResult: executionResult ? {
+            passed: executionResult.passed,
+            passedTestCases: executionResult.passedTestCases,
+            totalTestCases: executionResult.totalTestCases
+          } : null
+        }
+      });
+    }
+  }, [question, language, sourceCodeByLang, executionResult, setScreenContext]);
 
   // Load Attempt and Delivered Question
   const loadArena = useCallback(async () => {
