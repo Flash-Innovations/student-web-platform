@@ -328,12 +328,7 @@ export function FloatingAIAssistant() {
     <>
       {/* Floating Button with AI Aura */}
       {!assistantOpen && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 text-white text-xs font-medium backdrop-blur shadow-lg border border-slate-700/50 animate-fade-in">
-            {badge.icon}
-            <span className="truncate max-w-[150px]">{badge.title}</span>
-          </div>
-
+        <div className="fixed bottom-6 right-6 z-50 flex items-center">
           <button
             onClick={() => setAssistantOpen(true)}
             aria-label="Open SIPS AI Assistant"
