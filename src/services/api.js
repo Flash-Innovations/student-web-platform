@@ -107,7 +107,7 @@ export const isAuthEndpoint = (endpoint, options = {}) => {
   );
 };
 
-async function request(endpoint, options = {}) {
+async function request(endpoint, options = {}, retryCount = 0) {
   const url = `${API_BASE_URL}${endpoint}`;
   const token = getAuthToken();
   const isAuth = isAuthEndpoint(endpoint, options);
@@ -135,11 +135,27 @@ async function request(endpoint, options = {}) {
       headers
     });
   } catch (networkError) {
+    if (retryCount < 2) {
+      await new Promise((r) => setTimeout(r, 600 * (retryCount + 1)));
+      return request(endpoint, options, retryCount + 1);
+    }
     const err = new Error('Unable to connect to the server. Please try again.');
     err.status = 0;
     err.isNetworkError = true;
     err.originalError = networkError;
     throw err;
+  }
+
+  // Transparently retry on 429 (Rate Limit) or transient 502/503/504 server gateway errors
+  if ((response.status === 429 || (response.status >= 502 && response.status <= 504)) && retryCount < 2) {
+    let delayMs = 600 * (retryCount + 1);
+    const retryAfter = response.headers?.get ? response.headers.get('retry-after') : null;
+    if (retryAfter) {
+      const sec = parseInt(retryAfter, 10);
+      if (!isNaN(sec) && sec > 0) delayMs = Math.min(2500, sec * 1000);
+    }
+    await new Promise((r) => setTimeout(r, delayMs));
+    return request(endpoint, options, retryCount + 1);
   }
 
   // Handle 401 Unauthorized: ONLY for authenticated requests, NEVER for login requests
