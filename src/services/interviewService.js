@@ -35,7 +35,9 @@ export const interviewService = {
     course,
     branch,
     selectedSkills = [],
-    totalQuestions = 5
+    totalQuestions = 5,
+    mode = 'QUESTION_BASED',
+    durationMinutes = 15
   }) {
     const res = await aiApi.post('/api/interviews/session', {
       interviewType,
@@ -44,7 +46,9 @@ export const interviewService = {
       course,
       branch,
       selectedSkills: interviewType === 'HR Interview' ? [] : selectedSkills,
-      totalQuestions
+      totalQuestions,
+      mode,
+      durationMinutes
     });
     return res;
   },

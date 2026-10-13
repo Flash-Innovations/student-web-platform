@@ -30,6 +30,15 @@ export function useMockInterview() {
   const [finalReport, setFinalReport] = useState(null);
   const [isFinalizing, setIsFinalizing] = useState(false);
 
+  // Time-based and Follow-Up State
+  const [mode, setMode] = useState("TIME_BASED"); // "TIME_BASED" | "QUESTION_BASED"
+  const [durationMinutes, setDurationMinutes] = useState(15);
+  const [timeRemaining, setTimeRemaining] = useState(15 * 60);
+  const [isFollowUp, setIsFollowUp] = useState(false);
+  const [trackPhase, setTrackPhase] = useState("TECHNICAL"); // "TECHNICAL" | "HR"
+  const [timeWarning, setTimeWarning] = useState(null);
+  const timerIntervalRef = useRef(null);
+
   // Audio & Mic Controls
   const [isMicMuted, setIsMicMuted] = useState(false);
   const isMicMutedRef = useRef(false);
@@ -313,7 +322,9 @@ export function useMockInterview() {
     course,
     branch,
     selectedSkills,
-    totalQuestions = 5
+    totalQuestions = 5,
+    mode = "TIME_BASED",
+    durationMinutes = 15
   }) => {
     try {
       setStatus("connecting");
@@ -332,6 +343,25 @@ export function useMockInterview() {
       setTotalQuestions(totalQuestions);
       setIsFinalizing(false);
       isFinalizingRef.current = false;
+
+      // Mode and Duration initialization
+      const isTimeBased = (mode === "TIME_BASED");
+      setMode(isTimeBased ? "TIME_BASED" : "QUESTION_BASED");
+      setDurationMinutes(durationMinutes || 15);
+      setTimeRemaining(isTimeBased ? (durationMinutes || 15) * 60 : 0);
+      setIsFollowUp(false);
+      setTrackPhase(interviewType === "HR Interview" ? "HR" : "TECHNICAL");
+      setTimeWarning(null);
+
+      // Start client-side timer countdown interval if TIME_BASED
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+      if (isTimeBased) {
+        timerIntervalRef.current = setInterval(() => {
+          setTimeRemaining((prev) => Math.max(0, prev - 1));
+        }, 1000);
+      }
 
       // 1. Initialize and resume audio playback context under user interaction gesture
       const audioCtx = getPlaybackAudioContext();
@@ -364,7 +394,9 @@ export function useMockInterview() {
         course,
         branch,
         selectedSkills: interviewType === "HR Interview" ? [] : selectedSkills,
-        totalQuestions
+        totalQuestions,
+        mode: isTimeBased ? "TIME_BASED" : "QUESTION_BASED",
+        durationMinutes: durationMinutes || 15
       });
 
       if (!sessionData.success || !sessionData.sessionId) {
@@ -411,6 +443,37 @@ export function useMockInterview() {
           switch (msg.type) {
             case "ready":
               setStatus("speaking");
+              if (typeof msg.timeRemainingSeconds === "number") {
+                setTimeRemaining(msg.timeRemainingSeconds);
+              }
+              break;
+
+            case "timer_sync":
+              if (typeof msg.timeRemainingSeconds === "number") {
+                setTimeRemaining(msg.timeRemainingSeconds);
+              }
+              if (msg.trackPhase) {
+                setTrackPhase(msg.trackPhase);
+              }
+              if (typeof msg.isFollowUp === "boolean") {
+                setIsFollowUp(msg.isFollowUp);
+              }
+              break;
+
+            case "phase_transition":
+              setTrackPhase(msg.phase || "HR");
+              break;
+
+            case "time_warning":
+              setTimeWarning(msg.message || "2 minutes remaining. Wrapping up current question.");
+              break;
+
+            case "time_expired":
+              setTimeRemaining(0);
+              setStatus("evaluating");
+              setIsFinalizing(true);
+              isFinalizingRef.current = true;
+              cleanupMicHardware();
               break;
 
             case "ai_audio":
@@ -453,6 +516,15 @@ export function useMockInterview() {
                 setAiTranscript(msg.questionText);
                 aiTranscriptRef.current = msg.questionText;
               }
+              if (typeof msg.isFollowUp === "boolean") {
+                setIsFollowUp(msg.isFollowUp);
+              }
+              if (msg.trackPhase) {
+                setTrackPhase(msg.trackPhase);
+              }
+              if (typeof msg.timeRemainingSeconds === "number") {
+                setTimeRemaining(msg.timeRemainingSeconds);
+              }
               setStudentTranscript("");
               studentTranscriptRef.current = "";
               cleanupMicHardware();
@@ -474,6 +546,9 @@ export function useMockInterview() {
                       aiText: msg.previousTurn.questionText,
                       studentText: msg.previousTurn.studentTranscript,
                       feedback: msg.previousTurn.feedback,
+                      isFollowUp: Boolean(msg.previousTurn.isFollowUp),
+                      track: msg.previousTurn.track,
+                      turnType: msg.previousTurn.turnType,
                       timestamp: new Date()
                     }
                   ];
@@ -495,6 +570,15 @@ export function useMockInterview() {
               } else {
                 setAiTranscript("");
                 aiTranscriptRef.current = "";
+              }
+              if (typeof msg.isFollowUp === "boolean") {
+                setIsFollowUp(msg.isFollowUp);
+              }
+              if (msg.trackPhase) {
+                setTrackPhase(msg.trackPhase);
+              }
+              if (typeof msg.timeRemainingSeconds === "number") {
+                setTimeRemaining(msg.timeRemainingSeconds);
               }
               setStudentTranscript("");
               studentTranscriptRef.current = "";
@@ -523,10 +607,17 @@ export function useMockInterview() {
                       aiText: msg.previousTurn.questionText,
                       studentText: msg.previousTurn.studentTranscript,
                       feedback: msg.previousTurn.feedback,
+                      isFollowUp: Boolean(msg.previousTurn.isFollowUp),
+                      track: msg.previousTurn.track,
+                      turnType: msg.previousTurn.turnType,
                       timestamp: new Date()
                     }
                   ];
                 });
+              }
+              if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+                timerIntervalRef.current = null;
               }
               setStatus("evaluating");
               setIsFinalizing(true);
@@ -541,6 +632,11 @@ export function useMockInterview() {
 
             case "interview_completed":
               setStatus("completed");
+              if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+                timerIntervalRef.current = null;
+              }
+              setTimeWarning(null);
               {
                 const completedSummary = msg.summary || msg.interview?.summary;
                 setFinalReport(completedSummary);
@@ -562,6 +658,10 @@ export function useMockInterview() {
 
             case "error":
               setStatus("error");
+              if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+                timerIntervalRef.current = null;
+              }
               setErrorMessage(msg.message || "An error occurred during the interview.");
               if (msg.code) {
                 setErrorDetails(msg.code);
@@ -582,16 +682,28 @@ export function useMockInterview() {
 
       ws.onerror = (err) => {
         console.error("Interview WebSocket error:", err);
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+          timerIntervalRef.current = null;
+        }
         setStatus((prev) => (prev === "completed" ? "completed" : "error"));
         setErrorMessage("Network error connecting to the AI Interview service.");
       };
 
       ws.onclose = (e) => {
         console.log("Interview WebSocket closed:", e.reason);
+        if (timerIntervalRef.current) {
+          clearInterval(timerIntervalRef.current);
+          timerIntervalRef.current = null;
+        }
         cleanupMicHardware();
       };
     } catch (err) {
       console.error("Start interview error:", err);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
       setStatus("error");
       setErrorDetails(err.code || (err.status === 401 ? "TOKEN_EXPIRED" : null));
       setErrorMessage(err.message || "Failed to start interview.");
@@ -601,6 +713,11 @@ export function useMockInterview() {
   // End Interview manually with guaranteed finalization
   const endInterview = useCallback(async () => {
     if (isFinalizingRef.current || status === "completed") return;
+
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
 
     isFinalizingRef.current = true;
     setIsFinalizing(true);
@@ -666,6 +783,10 @@ export function useMockInterview() {
 
   // Reset interview session back to idle
   const resetInterview = useCallback(() => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
     cleanupMicHardware();
     clearPlaybackQueue();
     if (wsRef.current) {
@@ -690,11 +811,17 @@ export function useMockInterview() {
     setIsFinalizing(false);
     isFinalizingRef.current = false;
     setSession(null);
+    setIsFollowUp(false);
+    setTimeWarning(null);
   }, [cleanupMicHardware, clearPlaybackQueue]);
 
   // Safe cleanup on unmount
   useEffect(() => {
     return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
       cleanupMicHardware();
       clearPlaybackQueue();
       if (wsRef.current) {
@@ -729,6 +856,12 @@ export function useMockInterview() {
     isMicMuted,
     micVolume,
     isFinalizing,
+    mode,
+    durationMinutes,
+    timeRemaining,
+    isFollowUp,
+    trackPhase,
+    timeWarning,
     startInterview,
     endInterview,
     startRecording,

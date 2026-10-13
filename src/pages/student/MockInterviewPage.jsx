@@ -52,7 +52,9 @@ export function MockInterviewPage() {
   const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
 
   // Setup Options
-  const [interviewType, setInterviewType] = useState("Technical Interview"); // "Technical Interview" | "HR Interview"
+  const [formatMode, setFormatMode] = useState("TIME_BASED"); // "TIME_BASED" | "QUESTION_BASED"
+  const [interviewType, setInterviewType] = useState("Technical Interview"); // "Technical Interview" | "HR Interview" | "Combined (Tech + HR)"
+  const [durationMinutes, setDurationMinutes] = useState(15);
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [customSkillInput, setCustomSkillInput] = useState("");
   const [questionCount, setQuestionCount] = useState(5);
@@ -75,6 +77,11 @@ export function MockInterviewPage() {
     isMicMuted,
     micVolume,
     isFinalizing,
+    mode,
+    timeRemaining,
+    isFollowUp,
+    trackPhase,
+    timeWarning,
     startInterview,
     endInterview,
     startRecording,
@@ -84,6 +91,14 @@ export function MockInterviewPage() {
     toggleMute,
     resetInterview
   } = useMockInterview();
+
+  // Helper to format remaining seconds into mm:ss
+  const formatTime = (seconds) => {
+    const s = Math.max(0, Number(seconds) || 0);
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
 
   // Load student profile & interview roles
   useEffect(() => {
@@ -160,11 +175,13 @@ export function MockInterviewPage() {
     startInterview({
       interviewType,
       roleTitle: interviewType,
-      candidateName: studentProfile?.name,
+      candidateName: studentProfile?.name || user?.name,
       course: studentProfile?.course,
       branch: studentProfile?.branch,
-      selectedSkills: interviewType === "Technical Interview" ? selectedSkills : [],
-      totalQuestions: questionCount
+      selectedSkills: interviewType === "HR Interview" ? [] : selectedSkills,
+      totalQuestions: questionCount,
+      mode: formatMode,
+      durationMinutes
     });
   };
 
@@ -315,69 +332,166 @@ export function MockInterviewPage() {
               />
 
               <div className="space-y-6">
-                {/* Interview Type Selector */}
+                {/* Interview Format Selector */}
                 <div>
-                  <label className="block text-xs sm:text-sm font-semibold text-slate-800 mb-2">
-                    Interview Type
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs sm:text-sm font-semibold text-slate-800">
+                      Interview Format
+                    </label>
+                    <Badge variant={formatMode === "TIME_BASED" ? "primary" : "neutral"} size="sm">
+                      {formatMode === "TIME_BASED" ? "AI Adaptive Pacing" : "Fixed Turn Pacing"}
+                    </Badge>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => setInterviewType("Technical Interview")}
+                      onClick={() => setFormatMode("TIME_BASED")}
                       className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between ${
+                        formatMode === "TIME_BASED"
+                          ? "bg-indigo-50/70 border-indigo-500 shadow-xs ring-1 ring-indigo-500/20"
+                          : "bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50"
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Clock className={`w-4 h-4 ${formatMode === "TIME_BASED" ? "text-indigo-600" : "text-slate-400"}`} />
+                          <span className={`text-sm font-bold ${formatMode === "TIME_BASED" ? "text-indigo-900" : "text-slate-800"}`}>
+                            Time-Based Mock Interview (AI)
+                          </span>
+                          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                            Recommended
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Live conversational session with dynamic follow-up probing, timed pacing, and automatic wrap-up.
+                        </p>
+                      </div>
+                      {formatMode === "TIME_BASED" && <Check className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5 ml-2" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormatMode("QUESTION_BASED")}
+                      className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between ${
+                        formatMode === "QUESTION_BASED"
+                          ? "bg-indigo-50/70 border-indigo-500 shadow-xs ring-1 ring-indigo-500/20"
+                          : "bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50"
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <HelpCircle className={`w-4 h-4 ${formatMode === "QUESTION_BASED" ? "text-indigo-600" : "text-slate-400"}`} />
+                          <span className={`text-sm font-bold ${formatMode === "QUESTION_BASED" ? "text-indigo-900" : "text-slate-800"}`}>
+                            Question-Based Voice Test
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Standard structured test with a set number of prompt questions (3, 5, or 7) across core topics.
+                        </p>
+                      </div>
+                      {formatMode === "QUESTION_BASED" && <Check className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5 ml-2" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Interview Track / Type Selector */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs sm:text-sm font-semibold text-slate-800">
+                      Track Focus
+                    </label>
+                    <span className="text-xs text-slate-500 font-medium">Both Technical and HR supported</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setInterviewType("Technical Interview")}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                         interviewType === "Technical Interview"
                           ? "bg-indigo-50/70 border-indigo-500 shadow-xs ring-1 ring-indigo-500/20"
                           : "bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50"
                       }`}
                     >
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <Code className={`w-4 h-4 ${interviewType === "Technical Interview" ? "text-indigo-600" : "text-slate-400"}`} />
-                          <span className={`text-sm font-bold ${interviewType === "Technical Interview" ? "text-indigo-900" : "text-slate-800"}`}>
-                            Technical Interview
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Code className={`w-4 h-4 ${interviewType === "Technical Interview" ? "text-indigo-600" : "text-slate-400"}`} />
+                            <span className={`text-xs sm:text-sm font-bold ${interviewType === "Technical Interview" ? "text-indigo-900" : "text-slate-800"}`}>
+                              Technical
+                            </span>
+                          </div>
+                          {interviewType === "Technical Interview" && <Check className="w-4 h-4 text-indigo-600" />}
                         </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                          Core data structures, algorithms, coding fundamentals, system architecture, and domain technical skills.
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          DSA, system architecture, coding principles, and technology depth.
                         </p>
                       </div>
-                      {interviewType === "Technical Interview" && <Check className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5 ml-2" />}
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setInterviewType("HR Interview")}
-                      className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between ${
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                         interviewType === "HR Interview"
                           ? "bg-indigo-50/70 border-indigo-500 shadow-xs ring-1 ring-indigo-500/20"
                           : "bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50"
                       }`}
                     >
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <Users className={`w-4 h-4 ${interviewType === "HR Interview" ? "text-indigo-600" : "text-slate-400"}`} />
-                          <span className={`text-sm font-bold ${interviewType === "HR Interview" ? "text-indigo-900" : "text-slate-800"}`}>
-                            HR Interview
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Users className={`w-4 h-4 ${interviewType === "HR Interview" ? "text-indigo-600" : "text-slate-400"}`} />
+                            <span className={`text-xs sm:text-sm font-bold ${interviewType === "HR Interview" ? "text-indigo-900" : "text-slate-800"}`}>
+                              HR & Culture
+                            </span>
+                          </div>
+                          {interviewType === "HR Interview" && <Check className="w-4 h-4 text-indigo-600" />}
                         </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                          Behavioral questions, cultural fit, teamwork, leadership scenarios (STAR method), ethics, and aspirations.
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Behavioral scenarios, STAR methodology, teamwork, ethics, and career goals.
                         </p>
                       </div>
-                      {interviewType === "HR Interview" && <Check className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5 ml-2" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setInterviewType("Combined (Tech + HR)")}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        interviewType === "Combined (Tech + HR)"
+                          ? "bg-indigo-50/70 border-indigo-500 shadow-xs ring-1 ring-indigo-500/20"
+                          : "bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50"
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles className={`w-4 h-4 ${interviewType === "Combined (Tech + HR)" ? "text-indigo-600" : "text-slate-400"}`} />
+                            <span className={`text-xs sm:text-sm font-bold ${interviewType === "Combined (Tech + HR)" ? "text-indigo-900" : "text-slate-800"}`}>
+                              Combined
+                            </span>
+                            <span className="text-[9px] uppercase font-extrabold px-1 py-0.2 rounded bg-purple-100 text-purple-700">
+                              Dual
+                            </span>
+                          </div>
+                          {interviewType === "Combined (Tech + HR)" && <Check className="w-4 h-4 text-indigo-600" />}
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Full campus placement round: technical inquiry transitioning mid-session to HR behavioral.
+                        </p>
+                      </div>
                     </button>
                   </div>
                 </div>
 
-                {/* Technical Skills Focus Selector (Only for Technical Interview) */}
-                {interviewType === "Technical Interview" ? (
+                {/* Technical Skills Focus Selector (When Technical or Combined) */}
+                {interviewType !== "HR Interview" ? (
                   <div>
                     <SkillSelector
                       selectedSkills={selectedSkills}
                       onChange={setSelectedSkills}
                       maxSkills={12}
-                      label="Technical Skills in Focus"
-                      helperText="Focus technical interview questions on verified catalogue competencies"
+                      label={interviewType === "Combined (Tech + HR)" ? "Technical Skills Focus (Initial Phase)" : "Technical Skills in Focus"}
+                      helperText={interviewType === "Combined (Tech + HR)" ? "The AI will start with these technical competencies before transitioning to behavioral questions" : "Focus technical interview questions on verified catalogue competencies"}
                       placeholder="Search catalogue to add focus skills (e.g. React, Python, System Design)..."
                     />
                   </div>
@@ -394,33 +508,66 @@ export function MockInterviewPage() {
                   </div>
                 )}
 
-                {/* Question Length */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-xs sm:text-sm font-semibold text-slate-800">
-                      Interview Length
-                    </label>
-                    <span className="text-xs font-medium text-slate-600">
-                      {questionCount} Questions (~{questionCount * 2} minutes)
-                    </span>
+                {/* Session Length / Duration Selector */}
+                {formatMode === "TIME_BASED" ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs sm:text-sm font-semibold text-slate-800">
+                        Interview Duration
+                      </label>
+                      <span className="text-xs font-medium text-slate-600">
+                        {durationMinutes} Minutes (Adaptive Follow-Up Probing)
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[10, 15, 20, 30].map((mins) => (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => setDurationMinutes(mins)}
+                          className={`py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer text-center ${
+                            durationMinutes === mins
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          {mins} Minutes
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-2 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      Dynamic turn pacing with follow-up probing. Auto-finalizes into an evaluation report when time expires.
+                    </p>
                   </div>
-                  <div className="flex gap-2">
-                    {[3, 5, 7].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => setQuestionCount(num)}
-                        className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer ${
-                          questionCount === num
-                            ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                        }`}
-                      >
-                        {num} Questions
-                      </button>
-                    ))}
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs sm:text-sm font-semibold text-slate-800">
+                        Question Count
+                      </label>
+                      <span className="text-xs font-medium text-slate-600">
+                        {questionCount} Questions (~{questionCount * 2} minutes)
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      {[3, 5, 7].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setQuestionCount(num)}
+                          className={`flex-1 py-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer ${
+                            questionCount === num
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          {num} Questions
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Start Action */}
                 <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100">
@@ -433,7 +580,7 @@ export function MockInterviewPage() {
                     variant="primary"
                     icon={Play}
                     onClick={handleStart}
-                    disabled={status === "connecting" || (interviewType === "Technical Interview" && selectedSkills.length === 0)}
+                    disabled={status === "connecting" || (interviewType !== "HR Interview" && selectedSkills.length === 0)}
                     className="w-full sm:w-auto px-8 font-semibold shadow-md"
                   >
                     {status === "connecting" ? "Connecting Session..." : "Start Mock Interview"}
@@ -519,16 +666,68 @@ export function MockInterviewPage() {
         <div className="space-y-6">
           {/* Active Status & Control Ribbon */}
           <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Badge variant={statusConfig.variant} size="lg" className="animate-pulse">
                 {statusConfig.label}
               </Badge>
-              <span className="text-xs sm:text-sm font-semibold text-slate-700">
-                Question {currentQuestionIndex} of {totalQuestions}
-                <span className="text-xs text-slate-500 font-normal ml-2">
-                  ({completedQuestionsCount} completed)
+
+              {/* Time-Based Countdown or Question Counter */}
+              {mode === "TIME_BASED" ? (
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono font-bold text-xs sm:text-sm shadow-2xs transition-colors ${
+                      timeWarning
+                        ? "bg-red-50 text-red-700 border-red-300 animate-pulse"
+                        : "bg-slate-100 text-slate-800 border-slate-200"
+                    }`}
+                    title="Interview Session Countdown Timer"
+                  >
+                    <Clock className={`w-3.5 h-3.5 ${timeWarning ? "text-red-600" : "text-indigo-600"}`} />
+                    <span>{formatTime(timeRemaining)}</span>
+                    {timeWarning && (
+                      <span className="text-[10px] uppercase font-bold tracking-wider ml-1 bg-red-200/70 text-red-900 px-1 py-0.2 rounded">
+                        Wrap Up
+                      </span>
+                    )}
+                  </div>
+
+                  <span className="text-xs font-medium text-slate-600">
+                    Turn {currentQuestionIndex}
+                    <span className="text-slate-400 font-normal ml-1">
+                      ({completedQuestionsCount} answered)
+                    </span>
+                  </span>
+                </div>
+              ) : (
+                <span className="text-xs sm:text-sm font-semibold text-slate-700">
+                  Question {currentQuestionIndex} of {totalQuestions}
+                  <span className="text-xs text-slate-500 font-normal ml-2">
+                    ({completedQuestionsCount} completed)
+                  </span>
                 </span>
-              </span>
+              )}
+
+              {/* Follow-up Probe Badge */}
+              {isFollowUp && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 animate-pulse">
+                  <Brain className="w-3 h-3 text-amber-600" />
+                  Follow-Up Probe
+                </span>
+              )}
+
+              {/* Track Phase Badge (especially in Combined mode) */}
+              {trackPhase && (
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                    trackPhase === "HR"
+                      ? "bg-purple-50 text-purple-800 border-purple-200"
+                      : "bg-indigo-50 text-indigo-800 border-indigo-200"
+                  }`}
+                >
+                  {trackPhase === "HR" ? <Users className="w-3 h-3 text-purple-600" /> : <Code className="w-3 h-3 text-indigo-600" />}
+                  {trackPhase === "HR" ? "HR Behavioral Track" : "Technical Track"}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2.5">
@@ -589,6 +788,11 @@ export function MockInterviewPage() {
                   <div className="flex items-center justify-between text-xs font-semibold text-indigo-700">
                     <span className="flex items-center gap-1.5">
                       <Volume2 className="w-4 h-4 text-indigo-600" /> Interviewer Speech
+                      {isFollowUp && (
+                        <span className="ml-1.5 px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                          Adaptive Follow-Up
+                        </span>
+                      )}
                     </span>
                     <span className="text-[11px] text-slate-400 font-normal">Streaming PCM 24kHz</span>
                   </div>
@@ -599,14 +803,38 @@ export function MockInterviewPage() {
               </div>
 
               {/* Tips & Progress Bar */}
-              <div className="pt-3 border-t border-slate-100">
-                <ProgressBar
-                  value={completedQuestionsCount}
-                  max={totalQuestions}
-                  label={`Session Trajectory: ${completedQuestionsCount} of ${totalQuestions} Questions Completed`}
-                  variant="primary"
-                  size="sm"
-                />
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                {mode === "TIME_BASED" ? (
+                  <>
+                    {(() => {
+                      const totalSecs = (session?.durationMinutes || durationMinutes || 15) * 60;
+                      const elapsedSecs = Math.max(0, totalSecs - (timeRemaining != null ? timeRemaining : totalSecs));
+                      return (
+                        <ProgressBar
+                          value={elapsedSecs}
+                          max={totalSecs}
+                          label={`Session Elapsed: ${formatTime(elapsedSecs)} / ${formatTime(totalSecs)} (${completedQuestionsCount} questions covered)`}
+                          variant={timeWarning ? "amber" : "primary"}
+                          size="sm"
+                        />
+                      );
+                    })()}
+                    {timeWarning && (
+                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                        <span><strong>2-Minute Notice:</strong> Session nearing completion. Finalize your thoughts for auto-wrapup.</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <ProgressBar
+                    value={completedQuestionsCount}
+                    max={totalQuestions}
+                    label={`Session Trajectory: ${completedQuestionsCount} of ${totalQuestions} Questions Completed`}
+                    variant="primary"
+                    size="sm"
+                  />
+                )}
               </div>
             </Card>
 
@@ -738,8 +966,20 @@ export function MockInterviewPage() {
                     key={index}
                     className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/60 text-xs sm:text-sm space-y-1.5"
                   >
-                    <div className="font-semibold text-indigo-900">
-                      Question {turn.questionIndex} Turn:
+                    <div className="flex items-center justify-between font-semibold text-indigo-900">
+                      <span className="flex items-center gap-2">
+                        Question {turn.questionIndex} Turn:
+                        {turn.isFollowUp && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-800 border border-amber-200 uppercase tracking-wide">
+                            Follow-Up Probe
+                          </span>
+                        )}
+                      </span>
+                      {turn.track && (
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                          {turn.track}
+                        </span>
+                      )}
                     </div>
                     <div className="text-slate-800 font-medium">{turn.aiText}</div>
                     {turn.studentText && (
@@ -781,7 +1021,9 @@ export function MockInterviewPage() {
               </div>
               <div className="text-xs text-indigo-200 font-medium mt-0.5">Overall Readiness</div>
               <div className="text-[11px] text-indigo-300 font-normal mt-1 border-t border-white/10 pt-1">
-                {completedQuestionsCount || finalReport?.totalQuestionsCompleted || totalQuestions} of {totalQuestions} Questions Completed
+                {(session?.mode || formatMode) === "TIME_BASED"
+                  ? `${completedQuestionsCount || finalReport?.totalQuestionsCompleted || 0} Questions Covered • ${session?.durationMinutes || durationMinutes} Min Session`
+                  : `${completedQuestionsCount || finalReport?.totalQuestionsCompleted || totalQuestions} of ${totalQuestions} Questions Completed`}
               </div>
             </div>
           </div>
@@ -845,7 +1087,14 @@ export function MockInterviewPage() {
             {/* Performance Rubric & Next Steps */}
             <div className="space-y-6">
               <Card className="p-6 border-slate-200/90 shadow-xs space-y-4">
-                <CardHeader title="Evaluation Breakdown" />
+                <CardHeader
+                  title="Evaluation Breakdown"
+                  subtitle={
+                    (session?.mode || formatMode) === "TIME_BASED"
+                      ? `Time-Based Session (${session?.durationMinutes || durationMinutes} mins)`
+                      : `Question-Based Test (${totalQuestions} Qs)`
+                  }
+                />
                 <div className="space-y-3.5">
                   <ProgressBar
                     label="Technical Core Competence"
@@ -854,16 +1103,28 @@ export function MockInterviewPage() {
                     variant="primary"
                   />
                   <ProgressBar
-                    label="Problem-Solving & Depth"
-                    value={finalReport?.problemSolvingScore || 82}
+                    label="HR & Behavioral Readiness"
+                    value={finalReport?.hrScore || finalReport?.communicationScore || 85}
+                    max={100}
+                    variant="purple"
+                  />
+                  <ProgressBar
+                    label="Follow-Up Adaptability & Depth"
+                    value={finalReport?.adaptabilityScore || 82}
                     max={100}
                     variant="emerald"
                   />
                   <ProgressBar
-                    label="Communication & STAR Cadence"
+                    label="Problem-Solving Rigor"
+                    value={finalReport?.problemSolvingScore || 82}
+                    max={100}
+                    variant="amber"
+                  />
+                  <ProgressBar
+                    label="Communication & STAR Delivery"
                     value={finalReport?.communicationScore || 85}
                     max={100}
-                    variant="purple"
+                    variant="blue"
                   />
                 </div>
               </Card>
@@ -926,7 +1187,11 @@ export function MockInterviewPage() {
                     <div className="text-xs text-slate-500 flex items-center gap-3">
                       <span>{new Date(item.createdAt || item.startedAt).toLocaleDateString()}</span>
                       <span>•</span>
-                      <span>{item.questions?.length || item.totalQuestionsTarget || 5} questions answered</span>
+                      <span>
+                        {item.mode === "TIME_BASED"
+                          ? `Time-Based (${item.durationMinutes || 15}m) • ${item.questions?.length || 0} questions`
+                          : `${item.questions?.length || item.totalQuestionsTarget || 5} questions`}
+                      </span>
                     </div>
                     {item.skills && item.skills.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 pt-1">
