@@ -1,6 +1,5 @@
-const CACHE_NAME = 'sips-v1';
+const CACHE_NAME = 'sips-v2';
 const STATIC_ASSETS = [
-  '/',
   '/favicon.svg',
   '/branding/sips-mark.png',
   '/branding/sips-logo-mark.png',
@@ -12,7 +11,7 @@ const STATIC_ASSETS = [
   '/hero.png'
 ];
 
-const API_CACHE_NAME = 'sips-api-v1';
+const API_CACHE_NAME = 'sips-api-v2';
 const CACHE_STRATEGIES = {
   static: 'cache-first',
   api: 'stale-while-revalidate',
@@ -58,6 +57,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // HTML Navigation requests MUST always be network-first to get latest deployment chunk hashes
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request, CACHE_NAME));
+    return;
+  }
+
   if (url.origin !== location.origin && !url.href.includes('fonts.googleapis.com') && !url.href.includes('fonts.gstatic.com')) {
     return;
   }
@@ -72,7 +77,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isStaticAsset || isImage) {
-    event.respondWith(cacheFirst(request, isImage ? CACHE_NAME : CACHE_NAME));
+    event.respondWith(cacheFirst(request, CACHE_NAME));
     return;
   }
 
