@@ -1,4 +1,6 @@
 import { practiceApi } from './practiceApi';
+import sqlQuestionsData from '../data/sqlQuestions.json';
+import devQuestionsData from '../data/devQuestions.json';
 
 /**
  * Practice Platform In-Memory SWR Cache Store
@@ -64,6 +66,52 @@ async function cachedFetch(key, fetcher, { forceRefresh = false, ttl = DEFAULT_T
   return promise;
 }
 
+export function normalizeSqlQuestion(q) {
+  if (!q) return null;
+  if (Array.isArray(q.tables) && typeof q.starterQuery === 'string' && q.scenario) {
+    return q;
+  }
+  const meta = q.metadata || {};
+  return {
+    id: q.externalId || q.id,
+    dbId: q.id,
+    title: q.latestTitle || q.title || meta.title || "SQL Problem",
+    difficulty: q.difficulty || meta.difficulty || "Medium",
+    category: q.category || meta.category || "SQL Practice",
+    topic: q.subcategory || meta.topic || (Array.isArray(q.tags) && q.tags[0]) || "General",
+    scenario: q.statement || meta.scenario || "",
+    requirements: meta.requirements || [],
+    tables: meta.tables || [],
+    starterQuery: meta.starterQuery || (meta.starterCode && (meta.starterCode.sql || meta.starterCode.javascript)) || "SELECT ",
+    solutionQuery: meta.solutionQuery || "",
+    expectedOutput: meta.expectedOutput || null,
+    hints: meta.hints || []
+  };
+}
+
+export function normalizeDevQuestion(q) {
+  if (!q) return null;
+  if (Array.isArray(q.testCases) && typeof q.starterCode === 'string' && q.scenario) {
+    return q;
+  }
+  const meta = q.metadata || {};
+  return {
+    id: q.externalId || q.id,
+    dbId: q.id,
+    title: q.latestTitle || q.title || meta.title || "Dev Practice Problem",
+    difficulty: q.difficulty || meta.difficulty || "Medium",
+    category: q.category || meta.category || "Dev Practices",
+    topic: q.subcategory || meta.topic || (Array.isArray(q.tags) && q.tags[0]) || "General",
+    stack: meta.stack || (Array.isArray(q.tags) && q.tags.includes("javascript") ? "javascript" : "javascript"),
+    scenario: q.statement || meta.scenario || "",
+    requirements: meta.requirements || [],
+    starterCode: meta.starterCode || (meta.starterCode && meta.starterCode.javascript) || "",
+    solutionCode: meta.solutionCode || "",
+    testCases: meta.testCases || [],
+    hints: meta.hints || []
+  };
+}
+
 /**
  * Practice Platform Service
  * Encapsulates all communication with the Practice backend for student features.
@@ -76,6 +124,20 @@ export const practiceService = {
     if (filters.category && filters.category !== 'ALL') params.set('category', filters.category);
     if (filters.difficulty && filters.difficulty !== 'ALL') params.set('difficulty', filters.difficulty);
     return getCached(`coding_questions_${params.toString()}`);
+  },
+
+  getCachedSqlQuestions(filters = {}) {
+    const params = new URLSearchParams();
+    params.set('category', 'SQL');
+    if (filters.difficulty && filters.difficulty !== 'ALL') params.set('difficulty', filters.difficulty);
+    return getCached(`sql_questions_${params.toString()}`) || sqlQuestionsData;
+  },
+
+  getCachedDevQuestions(filters = {}) {
+    const params = new URLSearchParams();
+    params.set('category', 'DEV_PRACTICES');
+    if (filters.difficulty && filters.difficulty !== 'ALL') params.set('difficulty', filters.difficulty);
+    return getCached(`dev_questions_${params.toString()}`) || devQuestionsData;
   },
 
   getCachedCodingSolveStatus() {
@@ -283,6 +345,64 @@ export const practiceService = {
       async () => {
         const res = await practiceApi.get(`/api/questions?${queryString}`);
         return res?.data || res || [];
+      },
+      options
+    );
+  },
+
+  /**
+   * Get SQL practice questions from Practice Platform DB (with local bank fallback)
+   */
+  async getSqlQuestions(filters = {}, options = {}) {
+    const params = new URLSearchParams();
+    params.set('category', 'SQL');
+    if (filters.difficulty && filters.difficulty !== 'ALL') params.set('difficulty', filters.difficulty);
+    if (filters.collegeId) params.set('collegeId', filters.collegeId);
+    const queryString = params.toString();
+    const cacheKey = `sql_questions_${queryString}`;
+
+    return cachedFetch(
+      cacheKey,
+      async () => {
+        try {
+          const res = await practiceApi.get(`/api/questions?${queryString}`);
+          const list = res?.data || res;
+          if (Array.isArray(list) && list.length > 0) {
+            return list.map(normalizeSqlQuestion).filter(Boolean);
+          }
+        } catch (e) {
+          console.warn('Practice service SQL questions fetch fallback to local bank:', e);
+        }
+        return sqlQuestionsData.map(normalizeSqlQuestion).filter(Boolean);
+      },
+      options
+    );
+  },
+
+  /**
+   * Get Dev practice questions from Practice Platform DB (with local bank fallback)
+   */
+  async getDevQuestions(filters = {}, options = {}) {
+    const params = new URLSearchParams();
+    params.set('category', 'DEV_PRACTICES');
+    if (filters.difficulty && filters.difficulty !== 'ALL') params.set('difficulty', filters.difficulty);
+    if (filters.collegeId) params.set('collegeId', filters.collegeId);
+    const queryString = params.toString();
+    const cacheKey = `dev_questions_${queryString}`;
+
+    return cachedFetch(
+      cacheKey,
+      async () => {
+        try {
+          const res = await practiceApi.get(`/api/questions?${queryString}`);
+          const list = res?.data || res;
+          if (Array.isArray(list) && list.length > 0) {
+            return list.map(normalizeDevQuestion).filter(Boolean);
+          }
+        } catch (e) {
+          console.warn('Practice service Dev questions fetch fallback to local bank:', e);
+        }
+        return devQuestionsData.map(normalizeDevQuestion).filter(Boolean);
       },
       options
     );

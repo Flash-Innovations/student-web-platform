@@ -27,8 +27,9 @@ import { Button } from "../../components/common/Button";
 import { Badge } from "../../components/common/Badge";
 import { Modal } from "../../components/common/Modal";
 import { codingPracticeAiService } from "../../services/codingPracticeAiService";
+import { practiceService } from "../../services/practiceService";
 import { useScreenContext } from "../../context/ScreenContext";
-import sqlQuestions from "../../data/sqlQuestions.json";
+import sqlQuestionsFallback from "../../data/sqlQuestions.json";
 
 // Lazy-load Monaco Editor
 const CodeEditor = lazy(() => import("../../components/common/CodeEditor").then(m => ({ default: m.CodeEditor })));
@@ -38,16 +39,31 @@ export function SqlArenaPage() {
   const { questionId } = useParams();
   const { setScreenContext, openAssistantWithQuery } = useScreenContext();
 
+  const [questions, setQuestions] = useState(() => practiceService.getCachedSqlQuestions() || sqlQuestionsFallback);
+
+  // Sync with Practice Service to load questions from database (with super admin and branch additions)
+  useEffect(() => {
+    let isMounted = true;
+    practiceService.getSqlQuestions().then(loaded => {
+      if (isMounted && Array.isArray(loaded) && loaded.length > 0) {
+        setQuestions(loaded);
+      }
+    }).catch(err => {
+      console.warn("Could not load SQL questions from practiceService:", err);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
   // Find initial question index
   const initialIndex = useMemo(() => {
     if (!questionId) return 0;
-    const foundIdx = sqlQuestions.findIndex(q => q.id === questionId);
+    const foundIdx = questions.findIndex(q => q.id === questionId || q.dbId === questionId || q.externalId === questionId);
     return foundIdx !== -1 ? foundIdx : 0;
-  }, [questionId]);
+  }, [questionId, questions]);
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [activeTableIndex, setActiveTableIndex] = useState(0);
-  const [userQuery, setUserQuery] = useState(() => sqlQuestions[initialIndex]?.starterQuery || "SELECT ");
+  const [userQuery, setUserQuery] = useState(() => questions[initialIndex]?.starterQuery || "SELECT ");
   const [evaluating, setEvaluating] = useState(false);
   const [evalResult, setEvalResult] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -59,21 +75,21 @@ export function SqlArenaPage() {
   const [bankTopicFilter, setBankTopicFilter] = useState("ALL");
   const [bankDiffFilter, setBankDiffFilter] = useState("ALL");
 
-  const question = sqlQuestions[currentIndex] || sqlQuestions[0];
+  const question = questions[currentIndex] || questions[0];
 
-  // Sync index if URL parameter changes
+  // Sync index if URL parameter changes or questions list updates
   useEffect(() => {
     if (questionId) {
-      const idx = sqlQuestions.findIndex(q => q.id === questionId);
+      const idx = questions.findIndex(q => q.id === questionId || q.dbId === questionId || q.externalId === questionId);
       if (idx !== -1 && idx !== currentIndex) {
         setCurrentIndex(idx);
-        setUserQuery(sqlQuestions[idx].starterQuery || "SELECT ");
+        setUserQuery(questions[idx].starterQuery || "SELECT ");
         setEvalResult(null);
         setActiveTableIndex(0);
         setExpandedHints({});
       }
     }
-  }, [questionId]);
+  }, [questionId, questions, currentIndex]);
 
   // Sync with AI Assistant Screen Context
   useEffect(() => {
@@ -94,9 +110,9 @@ export function SqlArenaPage() {
   }, [question, userQuery, setScreenContext]);
 
   const selectQuestion = (index) => {
-    if (index < 0 || index >= sqlQuestions.length) return;
+    if (index < 0 || index >= questions.length) return;
     setCurrentIndex(index);
-    const q = sqlQuestions[index];
+    const q = questions[index];
     setUserQuery(q.starterQuery || "SELECT ");
     setEvalResult(null);
     setActiveTableIndex(0);
@@ -143,7 +159,7 @@ export function SqlArenaPage() {
 
   // Filtered questions for bank browser
   const filteredQuestions = useMemo(() => {
-    return sqlQuestions.filter(q => {
+    return questions.filter(q => {
       const matchSearch =
         !bankSearch.trim() ||
         q.title.toLowerCase().includes(bankSearch.toLowerCase()) ||
@@ -153,12 +169,12 @@ export function SqlArenaPage() {
       const matchDiff = bankDiffFilter === "ALL" || q.difficulty === bankDiffFilter;
       return matchSearch && matchTopic && matchDiff;
     });
-  }, [bankSearch, bankTopicFilter, bankDiffFilter]);
+  }, [questions, bankSearch, bankTopicFilter, bankDiffFilter]);
 
   const allTopics = useMemo(() => {
-    const set = new Set(sqlQuestions.map(q => q.topic).filter(Boolean));
+    const set = new Set(questions.map(q => q.topic).filter(Boolean));
     return ["ALL", ...Array.from(set)];
-  }, []);
+  }, [questions]);
 
   const activeTable = question?.tables?.[activeTableIndex] || null;
 
@@ -183,7 +199,7 @@ export function SqlArenaPage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold text-slate-400">
-                  Question {currentIndex + 1} of {sqlQuestions.length}
+                  Question {currentIndex + 1} of {questions.length}
                 </span>
                 <h2 className="font-extrabold text-slate-900 text-base tracking-tight">
                   {question.title}
@@ -215,11 +231,11 @@ export function SqlArenaPage() {
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="text-xs font-bold px-1.5 text-slate-700">
-              {currentIndex + 1} / {sqlQuestions.length}
+              {currentIndex + 1} / {questions.length}
             </span>
             <button
               onClick={() => selectQuestion(currentIndex + 1)}
-              disabled={currentIndex === sqlQuestions.length - 1}
+              disabled={currentIndex === questions.length - 1}
               title="Next question"
               className="p-1.5 rounded-md hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent text-slate-600 cursor-pointer"
             >
@@ -234,7 +250,7 @@ export function SqlArenaPage() {
             icon={Layers}
             onClick={() => setShowBankModal(true)}
           >
-            Question Bank (20)
+            Question Bank ({questions.length})
           </Button>
 
           <Button
@@ -574,7 +590,7 @@ export function SqlArenaPage() {
               </div>
             ) : (
               filteredQuestions.map((q) => {
-                const originalIndex = sqlQuestions.findIndex(x => x.id === q.id);
+                const originalIndex = questions.findIndex(x => x.id === q.id);
                 const isActive = originalIndex === currentIndex;
 
                 return (
