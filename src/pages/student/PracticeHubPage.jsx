@@ -30,7 +30,8 @@ import {
   Award,
   Lock,
   AlertTriangle,
-  Briefcase
+  Briefcase,
+  Terminal
 } from "lucide-react";
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
@@ -787,23 +788,23 @@ export function PracticeHubPage() {
         </div>
       )}
 
-      {/* Coding Practice Section */}
+      {/* Coding Hub Section (3 Pillars: DSA, SQL, Dev Practices) */}
       {(activeTab === "all" || activeTab === "coding") && (
-        <div className="space-y-3 pt-2">
+        <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <Code2 className="w-5 h-5 text-indigo-600" />
-              Coding Practice Arena
-            </h2>
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Code2 className="w-5 h-5 text-indigo-600" />
+                Coding Hub (Arenas & Playgrounds)
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Practice algorithmic DSA, AI-generated relational SQL schemas, and real-world developer engineering tasks.
+              </p>
+            </div>
             {codingArenaEnabled ? (
-              <Button
-                variant="primary"
-                size="xs"
-                icon={ArrowRight}
-                onClick={() => navigate("/student/practice/coding")}
-              >
-                Explore All Challenges
-              </Button>
+              <Badge variant="primary" size="xs">
+                3 Interactive Tracks
+              </Badge>
             ) : (
               <Badge variant="warning" size="xs">
                 Disabled by Department
@@ -812,44 +813,136 @@ export function PracticeHubPage() {
           </div>
 
           {codingArenaEnabled ? (
-            <Card className="p-6 border-slate-200 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-sm overflow-hidden relative">
-              <div className="relative z-10 max-w-2xl space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                    Live Compiler Sandbox
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                    C++, Java, Python, JS
-                  </span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Pillar 1: DSA Prep (Existing Sandbox) */}
+              <Card className="p-5 border-slate-200 bg-linear-to-br from-slate-900 via-indigo-950 to-slate-900 text-white shadow-sm flex flex-col justify-between group hover:border-indigo-400 transition-all relative overflow-hidden">
+                <div className="space-y-3 relative z-10">
+                  <div className="flex items-center justify-between">
+                    <span className="p-2 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                      <Binary className="w-4 h-4" />
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                      C++, Java, Python, JS
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-white group-hover:text-indigo-200 transition-colors">
+                      1. DSA Prep Arena
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                      Algorithmic problem-solving tested against hidden test cases, runtime benchmarks, and memory limits.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 text-[10px] text-slate-300 font-medium">
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">Two Pointers</span>
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">Dynamic Prog</span>
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">Trees & Graphs</span>
+                  </div>
                 </div>
 
-                <h3 className="text-xl font-extrabold tracking-tight text-white">
-                  Algorithmic & Data Structures Coding Practice
-                </h3>
-
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                  Test your code against server-evaluated public sample tests and hidden boundary test cases with automated scoring, time limits, and memory limits.
-                </p>
-
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                <div className="pt-4 mt-2 border-t border-white/10 flex items-center justify-between relative z-10">
+                  <span className="text-xs text-slate-400 font-medium">Judge0 Sandbox</span>
                   <Button
                     variant="primary"
-                    size="sm"
+                    size="xs"
                     icon={Play}
                     onClick={() => navigate("/student/practice/coding")}
                     className="bg-indigo-500 hover:bg-indigo-400 text-white border-0 shadow-sm"
                   >
-                    Enter Coding Arena
+                    Open DSA Arena
                   </Button>
-                  <span className="text-xs text-slate-400">
-                    Automated scoring • Zero setup required
-                  </span>
                 </div>
-              </div>
+                <Code2 className="absolute -right-4 -bottom-4 w-32 h-32 text-white/5 pointer-events-none" />
+              </Card>
 
-              {/* Decorative bg icon */}
-              <Code2 className="absolute -right-6 -bottom-6 w-48 h-48 text-white/5 pointer-events-none" />
-            </Card>
+              {/* Pillar 2: SQL Practice (AI Generated) */}
+              <Card className="p-5 border-slate-200 bg-linear-to-br from-slate-900 via-purple-950 to-slate-900 text-white shadow-sm flex flex-col justify-between group hover:border-purple-400 transition-all relative overflow-hidden">
+                <div className="space-y-3 relative z-10">
+                  <div className="flex items-center justify-between">
+                    <span className="p-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-400/30">
+                      <Database className="w-4 h-4" />
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5" /> AI Generated
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-white group-hover:text-purple-200 transition-colors">
+                      2. SQL Practice
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                      Synthesize live database schemas on demand, inspect interactive tables, and write production queries.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 text-[10px] text-slate-300 font-medium">
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">Joins & Aggregations</span>
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">Window Functions</span>
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">CTEs</span>
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-2 border-t border-white/10 flex items-center justify-between relative z-10">
+                  <span className="text-xs text-slate-400 font-medium">Interactive Grid Diff</span>
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    icon={Play}
+                    onClick={() => navigate("/student/practice/sql")}
+                    className="bg-purple-600 hover:bg-purple-500 text-white border-0 shadow-sm"
+                  >
+                    Open SQL Arena
+                  </Button>
+                </div>
+                <Database className="absolute -right-4 -bottom-4 w-32 h-32 text-white/5 pointer-events-none" />
+              </Card>
+
+              {/* Pillar 3: Dev Practices (AI Generated) */}
+              <Card className="p-5 border-slate-200 bg-linear-to-br from-slate-900 via-emerald-950 to-slate-900 text-white shadow-sm flex flex-col justify-between group hover:border-emerald-400 transition-all relative overflow-hidden">
+                <div className="space-y-3 relative z-10">
+                  <div className="flex items-center justify-between">
+                    <span className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                      <Terminal className="w-4 h-4" />
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5" /> AI Generated
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-white group-hover:text-emerald-200 transition-colors">
+                      3. Dev Practices
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                      Real-world developer tasks: rate limiting, async worker pools, and cache logic with automated unit tests.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 text-[10px] text-slate-300 font-medium">
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">API Design</span>
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">Concurrency</span>
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">Data Pipelines</span>
+                  </div>
+                </div>
+
+                <div className="pt-4 mt-2 border-t border-white/10 flex items-center justify-between relative z-10">
+                  <span className="text-xs text-slate-400 font-medium">Unit Test Runner</span>
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    icon={Play}
+                    onClick={() => navigate("/student/practice/dev")}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white border-0 shadow-sm"
+                  >
+                    Open Dev Arena
+                  </Button>
+                </div>
+                <Terminal className="absolute -right-4 -bottom-4 w-32 h-32 text-white/5 pointer-events-none" />
+              </Card>
+            </div>
           ) : (
             <Card className="p-6 border-amber-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-sm overflow-hidden relative">
               <div className="relative z-10 max-w-2xl space-y-3">

@@ -39,6 +39,8 @@ const PracticeSessionPage = lazyNamed(() => import("../pages/student/PracticeSes
 const PracticeResultPage = lazyNamed(() => import("../pages/student/PracticeResultPage"), "PracticeResultPage");
 const CodingQuestionListPage = lazyNamed(() => import("../pages/student/CodingQuestionListPage"), "CodingQuestionListPage");
 const CodingArenaPage = lazyNamed(() => import("../pages/student/CodingArenaPage"), "CodingArenaPage");
+const SqlArenaPage = lazyNamed(() => import("../pages/student/SqlArenaPage"), "SqlArenaPage");
+const DevArenaPage = lazyNamed(() => import("../pages/student/DevArenaPage"), "DevArenaPage");
 
 // Lazy-loaded Timed Contests
 const ContestListPage = lazyNamed(() => import("../pages/student/ContestListPage"), "ContestListPage");
@@ -113,6 +115,10 @@ export function AppRoutes() {
             <Route path="/student/practice/history" element={<PracticeHistoryPage />} />
             <Route path="/student/practice/coding" element={<CodingQuestionListPage />} />
             <Route path="/student/practice/coding/:attemptId" element={<CodingArenaPage />} />
+            <Route path="/student/practice/sql" element={<SqlArenaPage />} />
+            <Route path="/student/practice/sql/:questionId" element={<SqlArenaPage />} />
+            <Route path="/student/practice/dev" element={<DevArenaPage />} />
+            <Route path="/student/practice/dev/:questionId" element={<DevArenaPage />} />
             <Route path="/student/practice/attempt/:attemptId" element={<PracticeSessionPage />} />
             <Route path="/student/practice/attempt/:attemptId/result" element={<PracticeResultPage />} />
 
