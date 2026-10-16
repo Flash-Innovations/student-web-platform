@@ -1,6 +1,10 @@
-const CACHE_NAME = 'sips-v2';
+const CACHE_NAME = 'flash-v2';
 const STATIC_ASSETS = [
   '/favicon.svg',
+  '/branding/flash-logo-compact.png',
+  '/branding/flash-logo-horizontal.png',
+  '/branding/flash-logo-full.png',
+  '/branding/flash-mark.png',
   '/branding/sips-mark.png',
   '/branding/sips-logo-mark.png',
   '/branding/sips-logo-full.png',
