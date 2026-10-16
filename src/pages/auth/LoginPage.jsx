@@ -110,9 +110,9 @@ export function LoginPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <div className="flex justify-center mb-3">
           <img
-            src="/branding/sips-logo-full.png"
-            alt="SIPS - Skill Intelligence Placement System"
-            className="h-16 w-auto max-w-[280px] sm:max-w-[320px] object-contain cursor-pointer"
+            src="/branding/flash-logo-full.png"
+            alt="FLASH"
+            className="h-20 w-auto max-w-[240px] sm:max-w-[280px] object-contain cursor-pointer transition-transform hover:scale-105"
             onClick={() => navigate("/")}
           />
         </div>
