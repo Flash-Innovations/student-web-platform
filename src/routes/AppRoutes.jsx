@@ -4,9 +4,35 @@ import { useAuth } from "../context/AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 
-// Helper for dynamic named imports with React.lazy
+const isChunkLoadError = (err) => {
+  const msg = (err?.message || "").toLowerCase();
+  return (
+    msg.includes("failed to fetch dynamically imported module") ||
+    msg.includes("error loading dynamically imported module") ||
+    msg.includes("importing a module script failed") ||
+    msg.includes("dynamically imported module")
+  );
+};
+
+// Resilient helper for dynamic named imports with automatic reload on deployment chunk mismatches
 const lazyNamed = (importFn, name) =>
-  lazy(() => importFn().then((module) => ({ default: module[name] })));
+  lazy(async () => {
+    try {
+      const module = await importFn();
+      return { default: module[name] };
+    } catch (error) {
+      if (isChunkLoadError(error)) {
+        const lastReload = parseInt(sessionStorage.getItem("last_chunk_reload") || "0", 10);
+        const now = Date.now();
+        if (now - lastReload > 10000) {
+          sessionStorage.setItem("last_chunk_reload", now.toString());
+          window.location.reload();
+          return new Promise(() => {}); // Suspend while reload executes
+        }
+      }
+      throw error;
+    }
+  });
 
 // Eagerly loaded public entry pages for instant first paint
 import { LandingPage } from "../pages/LandingPage";

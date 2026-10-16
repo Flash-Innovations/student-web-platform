@@ -4,26 +4,18 @@ import './index.css'
 import 'katex/dist/katex.min.css'
 import App from './App.jsx'
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[SW] New version available, please refresh');
-              }
-            });
-          }
-        });
-      })
-      .catch((error) => {
-        console.warn('[SW] Registration failed:', error);
-      });
-  });
-}
+// Automatically recover from chunk mismatches caused by new production deployments
+window.addEventListener('vite:preloadError', (event) => {
+  if (typeof event?.preventDefault === 'function') {
+    event.preventDefault();
+  }
+  const lastReload = parseInt(sessionStorage.getItem('last_chunk_reload') || '0', 10);
+  const now = Date.now();
+  if (now - lastReload > 10000) {
+    sessionStorage.setItem('last_chunk_reload', now.toString());
+    window.location.reload();
+  }
+});
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -15,7 +15,8 @@ import {
   Info,
   HelpCircle,
   Play,
-  Layers
+  Layers,
+  RefreshCw
 } from "lucide-react";
 import { Card } from "../../components/common/Card";
 import { Button } from "../../components/common/Button";
@@ -181,6 +182,25 @@ export function StudentAssessmentDetailsPage() {
             )}
           </div>
         </div>
+
+        {/* Start Assessment Error / Retry Alert */}
+        {error && (
+          <div className="mt-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span className="leading-relaxed font-medium">{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleStartOrResume}
+              disabled={starting}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0 self-start sm:self-auto shadow-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${starting ? 'animate-spin' : ''}`} />
+              Retry Verification
+            </button>
+          </div>
+        )}
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-slate-100">

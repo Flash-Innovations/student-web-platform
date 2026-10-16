@@ -38,6 +38,13 @@ import { studentService } from "../../services/studentService";
 import { interviewService } from "../../services/interviewService";
 import { useMockInterview } from "../../hooks/useMockInterview";
 import { SkillSelector } from "../../components/common/SkillSelector";
+import { useNotifications } from "../../context/NotificationContext";
+import { useSafeBrowser } from "../../hooks/useSafeBrowser";
+import {
+  SafeBrowserWarningModal,
+  SafeBrowserTerminatedModal,
+  SafeBrowserStatusPill
+} from "../../components/common/SafeBrowserGate";
 
 export function MockInterviewPage() {
   const navigate = useNavigate();
@@ -170,8 +177,37 @@ export function MockInterviewPage() {
     setSelectedSkills((prev) => prev.filter((s) => s !== skill));
   };
 
+  const { addToast } = useNotifications();
+
+  const isInterviewActive = [
+    "connecting",
+    "speaking",
+    "listening",
+    "processing",
+    "evaluating"
+  ].includes(status);
+
+  // Safe Browser Proctoring Hook for Active Voice Interview
+  const safeBrowser = useSafeBrowser({
+    enabled: isInterviewActive,
+    maxViolations: 3,
+    blockClipboard: false,
+    toastNotifier: (msg, type) => {
+      if (addToast) addToast(msg, type);
+    },
+    onViolation: () => {
+      if (isRecording) {
+        stopRecording();
+      }
+    },
+    onTerminated: () => {
+      endInterview();
+    }
+  });
+
   // Start interview trigger
-  const handleStart = () => {
+  const handleStart = async () => {
+    await safeBrowser.launchSafeBrowser();
     startInterview({
       interviewType,
       roleTitle: interviewType,
@@ -670,6 +706,15 @@ export function MockInterviewPage() {
               <Badge variant={statusConfig.variant} size="lg" className="animate-pulse">
                 {statusConfig.label}
               </Badge>
+
+              {/* Safe Browser Proctoring Pill */}
+              <SafeBrowserStatusPill
+                isArmed={safeBrowser.isArmed}
+                isFullscreen={safeBrowser.isFullscreenActive}
+                violationCount={safeBrowser.violationCount}
+                maxViolations={safeBrowser.maxViolations}
+                onReenterFullscreen={safeBrowser.launchSafeBrowser}
+              />
 
               {/* Time-Based Countdown or Question Counter */}
               {mode === "TIME_BASED" ? (
@@ -1290,6 +1335,19 @@ export function MockInterviewPage() {
           </div>
         </div>
       )}
+
+      {/* Safe Browser Integrity Warning Strike Modal */}
+      <SafeBrowserWarningModal
+        warning={safeBrowser.activeWarning}
+        onDismiss={safeBrowser.dismissWarning}
+      />
+
+      {/* Safe Browser Disqualification / Termination Modal */}
+      <SafeBrowserTerminatedModal
+        isOpen={safeBrowser.isTerminated}
+        totalStrikes={safeBrowser.violationCount}
+        violations={safeBrowser.violations}
+      />
     </div>
   );
 }

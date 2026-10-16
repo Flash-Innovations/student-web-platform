@@ -908,7 +908,7 @@ export function PracticeHubPage() {
                       <Terminal className="w-4 h-4" />
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
-                      30 Tasks • JS, Java, Python
+                      Multi-Language • JS, Python, Java
                     </span>
                   </div>
 
@@ -917,7 +917,7 @@ export function PracticeHubPage() {
                       3. Dev Practices
                     </h3>
                     <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                      30 production tasks across Node.js, Spring Boot, and FastAPI: rate limiting, worker pools, caching tiers, and unit assertions.
+                      30 production engineering tasks. Choose your preferred language (Node.js, Python FastAPI, or Spring Boot Java) right in the editor.
                     </p>
                   </div>
 

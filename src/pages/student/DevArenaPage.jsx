@@ -29,6 +29,12 @@ import { Modal } from "../../components/common/Modal";
 import { practiceService } from "../../services/practiceService";
 import { useScreenContext } from "../../context/ScreenContext";
 import devQuestionsFallback from "../../data/devQuestions.json";
+import {
+  DEV_LANGUAGES,
+  DEV_LANGUAGE_MAP,
+  DEFAULT_DEV_LANGUAGE,
+  getDevStarterCode
+} from "../../utils/devLanguageSupport";
 
 // Lazy-load Monaco Editor
 const CodeEditor = lazy(() => import("../../components/common/CodeEditor").then(m => ({ default: m.CodeEditor })));
@@ -61,7 +67,8 @@ export function DevArenaPage() {
   }, [questionId, questions]);
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [userCode, setUserCode] = useState(() => questions[initialIndex]?.starterCode || "");
+  const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_DEV_LANGUAGE);
+  const [codesByLang, setCodesByLang] = useState({});
   const [runningTests, setRunningTests] = useState(false);
   const [testResults, setTestResults] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -74,6 +81,32 @@ export function DevArenaPage() {
   const [bankDiffFilter, setBankDiffFilter] = useState("ALL");
 
   const question = questions[currentIndex] || questions[0];
+  const currentLangConfig = DEV_LANGUAGE_MAP[selectedLanguage] || DEV_LANGUAGE_MAP.javascript;
+
+  // Active code for the selected question and language
+  const activeCode = useMemo(() => {
+    const qId = question?.id || "default";
+    if (codesByLang[qId]?.[selectedLanguage] !== undefined) {
+      return codesByLang[qId][selectedLanguage];
+    }
+    return getDevStarterCode(question, selectedLanguage);
+  }, [question, selectedLanguage, codesByLang]);
+
+  const handleCodeChange = (val) => {
+    const qId = question?.id || "default";
+    setCodesByLang((prev) => ({
+      ...prev,
+      [qId]: {
+        ...(prev[qId] || {}),
+        [selectedLanguage]: val || ""
+      }
+    }));
+  };
+
+  const handleLanguageChange = (newLang) => {
+    setSelectedLanguage(newLang);
+    setTestResults(null);
+  };
 
   // Sync index if URL parameter changes or questions list updates
   useEffect(() => {
@@ -81,7 +114,6 @@ export function DevArenaPage() {
       const idx = questions.findIndex(q => q.id === questionId || q.dbId === questionId || q.externalId === questionId);
       if (idx !== -1 && idx !== currentIndex) {
         setCurrentIndex(idx);
-        setUserCode(questions[idx].starterCode || "");
         setTestResults(null);
         setExpandedHints({});
       }
@@ -98,19 +130,18 @@ export function DevArenaPage() {
           category: "Dev Practices",
           topic: question.topic,
           difficulty: question.difficulty,
-          stack: question.stack,
-          currentCode: userCode,
+          language: selectedLanguage,
+          currentCode: activeCode,
           testResults
         }
       });
     }
-  }, [question, userCode, testResults, setScreenContext]);
+  }, [question, selectedLanguage, activeCode, testResults, setScreenContext]);
 
   const selectQuestion = (index) => {
     if (index < 0 || index >= questions.length) return;
     setCurrentIndex(index);
     const q = questions[index];
-    setUserCode(q.starterCode || "");
     setTestResults(null);
     setExpandedHints({});
     setShowBankModal(false);
@@ -118,14 +149,15 @@ export function DevArenaPage() {
   };
 
   const handleRunTests = async () => {
-    if (!userCode.trim() || !question) return;
+    if (!activeCode.trim() || !question) return;
     setRunningTests(true);
 
     try {
-      // Simulate client-side assertion verification
-      await new Promise(r => setTimeout(r, 500));
+      // Simulate client-side assertion verification in candidate's chosen language
+      await new Promise(r => setTimeout(r, 600));
 
-      const hasImplementation = userCode.length > (question.starterCode?.length || 50);
+      const starter = getDevStarterCode(question, selectedLanguage);
+      const hasImplementation = activeCode.trim() !== starter.trim() && activeCode.length > 50;
       const passed = hasImplementation;
 
       const cases = (question.testCases || []).map((tc, idx) => ({
@@ -143,6 +175,7 @@ export function DevArenaPage() {
         status: allPassed ? "ALL_ASSERTIONS_PASSED" : "ASSERTION_FAILED",
         passCount: cases.filter(c => c.passed).length,
         totalCount: cases.length,
+        language: currentLangConfig.label,
         cases
       });
     } finally {
@@ -151,18 +184,16 @@ export function DevArenaPage() {
   };
 
   const resetCode = () => {
-    if (question?.starterCode) {
-      setUserCode(question.starterCode);
-      setTestResults(null);
-    }
+    const starter = getDevStarterCode(question, selectedLanguage);
+    handleCodeChange(starter);
+    setTestResults(null);
   };
 
   const copyStarter = () => {
-    if (question?.starterCode) {
-      navigator.clipboard.writeText(question.starterCode);
-      setCopiedCode(true);
-      setTimeout(() => setCopiedCode(false), 2000);
-    }
+    const starter = getDevStarterCode(question, selectedLanguage);
+    navigator.clipboard.writeText(starter);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   const toggleHint = (idx) => {
@@ -187,33 +218,6 @@ export function DevArenaPage() {
     const set = new Set(questions.map(q => q.topic).filter(Boolean));
     return ["ALL", ...Array.from(set)];
   }, [questions]);
-
-  // Dynamic stack metadata for Monaco editor & visual pills
-  const stackInfo = useMemo(() => {
-    const s = (question?.stack || "").toLowerCase();
-    if (s.includes("java") || s.includes("spring")) {
-      return {
-        filename: "Solution.java",
-        runtime: "Spring Boot 3 / Java 17+",
-        lang: "java",
-        badgeColor: "bg-purple-50 text-purple-700 border-purple-200"
-      };
-    }
-    if (s.includes("python") || s.includes("fastapi")) {
-      return {
-        filename: "main.py",
-        runtime: "FastAPI / Python 3.11+",
-        lang: "python",
-        badgeColor: "bg-sky-50 text-sky-700 border-sky-200"
-      };
-    }
-    return {
-      filename: "solution.js",
-      runtime: "Node.js ES6+ Environment",
-      lang: "javascript",
-      badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200"
-    };
-  }, [question?.stack]);
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-10">
@@ -250,8 +254,8 @@ export function DevArenaPage() {
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   {question.topic}
                 </span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${stackInfo.badgeColor}`}>
-                  {question.stack?.toUpperCase() || "NODE.JS"}
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                  MULTI-LANGUAGE • JS • PYTHON • JAVA
                 </span>
               </div>
             </div>
@@ -392,10 +396,27 @@ export function DevArenaPage() {
         <div className="lg:col-span-7 space-y-4">
           <Card className="border-slate-200 shadow-2xs overflow-hidden">
             {/* Editor Toolbar */}
-            <div className="bg-slate-900 px-4 py-2.5 flex items-center justify-between text-white border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-semibold text-emerald-400">{stackInfo.filename}</span>
-                <span className="text-[10px] text-slate-400">{stackInfo.runtime}</span>
+            <div className="bg-slate-900 px-4 py-2.5 flex items-center justify-between text-white border-b border-slate-800 flex-wrap gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-slate-400 font-semibold">Language:</span>
+                  <select
+                    value={selectedLanguage}
+                    onChange={(e) => handleLanguageChange(e.target.value)}
+                    className="text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors cursor-pointer"
+                  >
+                    {DEV_LANGUAGES.map((lang) => (
+                      <option key={lang.id} value={lang.id}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
+                  <span className="text-xs font-mono font-semibold text-emerald-400">{currentLangConfig.filename}</span>
+                  <span className="text-[10px] text-slate-400 hidden sm:inline">{currentLangConfig.runtime}</span>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -437,14 +458,14 @@ export function DevArenaPage() {
               <Suspense
                 fallback={
                   <div className="h-full flex items-center justify-center text-slate-500 text-xs font-mono">
-                    Loading {stackInfo.lang} Workspace...
+                    Loading {currentLangConfig.monacoLang} Workspace...
                   </div>
                 }
               >
                 <CodeEditor
-                  value={userCode}
-                  onChange={(val) => setUserCode(val || "")}
-                  language={stackInfo.lang}
+                  value={activeCode}
+                  onChange={handleCodeChange}
+                  language={currentLangConfig.monacoLang}
                   theme="vs-dark"
                   height="100%"
                   options={{

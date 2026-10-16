@@ -16,7 +16,7 @@ const getAuthToken = () => {
   }
 };
 
-async function practiceRequest(endpoint, options = {}) {
+async function practiceRequest(endpoint, options = {}, retryCount = 0) {
   const url = `${PRACTICE_API_BASE_URL.replace(/\/+$/, '')}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   const token = getAuthToken();
 
@@ -43,11 +43,27 @@ async function practiceRequest(endpoint, options = {}) {
       headers
     });
   } catch (networkError) {
+    if (retryCount < 2) {
+      await new Promise((r) => setTimeout(r, 600 * (retryCount + 1)));
+      return practiceRequest(endpoint, options, retryCount + 1);
+    }
     const err = new Error('Unable to connect to the Practice Platform service. Please check your connection or verify the practice backend is running.');
     err.status = 0;
     err.isNetworkError = true;
     err.originalError = networkError;
     throw err;
+  }
+
+  // Transparently retry on 429 (Rate Limit) or transient 502/503/504 server gateway errors
+  if ((response.status === 429 || (response.status >= 502 && response.status <= 504)) && retryCount < 2) {
+    let delayMs = 600 * (retryCount + 1);
+    const retryAfter = response.headers?.get ? response.headers.get('retry-after') : null;
+    if (retryAfter) {
+      const sec = parseInt(retryAfter, 10);
+      if (!isNaN(sec) && sec > 0) delayMs = Math.min(2500, sec * 1000);
+    }
+    await new Promise((r) => setTimeout(r, delayMs));
+    return practiceRequest(endpoint, options, retryCount + 1);
   }
 
   let data;

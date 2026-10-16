@@ -33,6 +33,14 @@ import { CodeEditor } from "../../components/common/CodeEditor";
 import { practiceService } from "../../services/practiceService";
 import { WorkspaceSkeleton } from "../../components/common/LoadingSkeleton";
 import { ProblemStatement } from "../../components/common/ProblemStatement";
+import { useNotifications } from "../../context/NotificationContext";
+import { useSafeBrowser, parseProctoringConfig } from "../../hooks/useSafeBrowser";
+import {
+  SafeBrowserLaunchModal,
+  SafeBrowserWarningModal,
+  SafeBrowserTerminatedModal,
+  SafeBrowserStatusPill
+} from "../../components/common/SafeBrowserGate";
 import { cn } from "../../utils/cn";
 
 const STARTER_TEMPLATES = {
@@ -110,6 +118,31 @@ rl.on('close', () => {
 export function ContestWorkspacePage() {
   const { contestId, attemptId } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useNotifications();
+
+  // Proctoring & Safe Browser State
+  const [maxViolationsAllowed, setMaxViolationsAllowed] = useState(3);
+
+  // Safe Browser Hook
+  const safeBrowser = useSafeBrowser({
+    enabled: true,
+    maxViolations: maxViolationsAllowed,
+    blockClipboard: true, // Copy pasting strictly disallowed in contest
+    toastNotifier: (msg, type) => {
+      if (addToast) addToast(msg, type);
+    },
+    onTerminated: async () => {
+      try {
+        await practiceService.submitContest(contestId, attemptId);
+      } catch (err) {
+        console.warn("Auto-submit on safe browser termination notice:", err);
+      } finally {
+        setTimeout(() => {
+          navigate(`/student/contests/${contestId}/attempt/${attemptId}/result`, { replace: true });
+        }, 2200);
+      }
+    }
+  });
 
   // Core Data
   const [loading, setLoading] = useState(true);
@@ -196,6 +229,12 @@ export function ContestWorkspacePage() {
       const sections = [...new Set(res.questions.map((q) => q.section))];
       if (sections.length > 0 && !currentSection) {
         setCurrentSection(sections[0]);
+      }
+
+      // Parse creator-configured safe browser proctoring rules
+      const proctoring = parseProctoringConfig(res.instructions || res.description || "");
+      if (proctoring.maxViolations) {
+        setMaxViolationsAllowed(proctoring.maxViolations);
       }
 
       // Hydrate saved responses from backend
@@ -698,6 +737,15 @@ export function ContestWorkspacePage() {
 
         {/* Server Authoritative Timer + Submit Action */}
         <div className="flex items-center gap-3 ml-auto">
+          {/* Safe Browser Status Pill */}
+          <SafeBrowserStatusPill
+            isArmed={safeBrowser.isArmed}
+            isFullscreen={safeBrowser.isFullscreenActive}
+            violationCount={safeBrowser.violationCount}
+            maxViolations={safeBrowser.maxViolations}
+            onReenterFullscreen={safeBrowser.launchSafeBrowser}
+          />
+
           <div
             className={cn(
               "flex items-center gap-2 px-3.5 py-1.5 rounded-xl border font-mono text-sm font-bold transition-all shadow-2xs",
@@ -817,7 +865,7 @@ export function ContestWorkspacePage() {
                   <h2 className="text-base font-bold text-slate-900">
                     {currentQuestionVersion?.title || "Coding Challenge"}
                   </h2>
-                  <ProblemStatement statement={currentQuestionVersion?.statement || "No statement provided."} />
+                  <ProblemStatement statement={currentQuestionVersion?.statement || "No statement provided."} disableCopy={true} />
                 </div>
 
                 {/* Constraints & Limits */}
@@ -955,6 +1003,8 @@ export function ContestWorkspacePage() {
                     language={currentCodingLang}
                     height="400px"
                     readOnly={isExpired || submitting}
+                    disableCopyPaste={true}
+                    onClipboardBlocked={(msg) => addToast && addToast(msg, "warning")}
                   />
                 </div>
 
@@ -1236,7 +1286,7 @@ export function ContestWorkspacePage() {
                     {currentQuestionVersion.title}
                   </h2>
                 )}
-                <ProblemStatement statement={currentQuestionVersion?.statement || "No question statement provided."} />
+                <ProblemStatement statement={currentQuestionVersion?.statement || "No question statement provided."} disableCopy={true} />
               </div>
 
               {/* MCQ OPTIONS / TRUE_FALSE / NUMERICAL */}
@@ -1604,6 +1654,28 @@ export function ContestWorkspacePage() {
           </div>
         </div>
       </Modal>
+
+      {/* 6. SAFE BROWSER LAUNCH GATE MODAL */}
+      <SafeBrowserLaunchModal
+        isOpen={!safeBrowser.isArmed && !loading && !error}
+        title="Proctored Placement Contest"
+        maxViolations={safeBrowser.maxViolations}
+        blockClipboard={true}
+        onLaunch={safeBrowser.launchSafeBrowser}
+      />
+
+      {/* 7. SAFE BROWSER INTEGRITY WARNING MODAL */}
+      <SafeBrowserWarningModal
+        warning={safeBrowser.activeWarning}
+        onDismiss={safeBrowser.dismissWarning}
+      />
+
+      {/* 8. SAFE BROWSER DISQUALIFICATION / TERMINATED MODAL */}
+      <SafeBrowserTerminatedModal
+        isOpen={safeBrowser.isTerminated}
+        totalStrikes={safeBrowser.violationCount}
+        violations={safeBrowser.violations}
+      />
     </div>
   );
 }
